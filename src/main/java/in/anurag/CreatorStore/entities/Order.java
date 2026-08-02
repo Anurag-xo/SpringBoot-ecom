@@ -1,5 +1,7 @@
 package in.anurag.CreatorStore.entities;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -39,7 +41,8 @@ public class Order {
   @Column(name = "toatl_price", nullable = false)
   private BigDecimal totalPrice;
 
-  @OneToMany(mappedBy = "order")
+  @JsonManagedReference
+  @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
   private List<OrderItem> OrderItems;
 
   @Column(name = "created_at")
