@@ -17,7 +17,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class OderRequest {
+public class OrderRequest {
   @NotBlank(message = "Customer name is required")
   private String customerName;
 
