@@ -26,7 +26,7 @@ public class OrderService {
     BigDecimal totalPrice = BigDecimal.ZERO;
 
     Order order = new Order();
-    order.setCustomerName(orderRequest.getCustomerName()); // Fixed typo
+    order.setCustomerName(orderRequest.getCustomerName());
     order.setCustomerEmail(orderRequest.getCustomerEmail());
     order.setStatus("CONFIRMED");
 
@@ -44,17 +44,15 @@ public class OrderService {
             "Not enough stock for product id: " + itemRequest.getProductId());
       }
 
-      BigDecimal priceOfItem =
+      // Calculate price and update stock
+      BigDecimal itemTotal =
           product.getPrice().multiply(BigDecimal.valueOf(itemRequest.getQuantity()));
-      totalPrice = totalPrice.add(priceOfItem);
+      totalPrice = totalPrice.add(itemTotal);
 
-      // Update stock (Fixed syntax error: removed extra ");")
       product.setStockQuantity(product.getStockQuantity() - itemRequest.getQuantity());
+      productRepository.save(product); // Save updated stock
 
-      // Fixed: use the injected instance 'productRepository', not the class name
-      productRepository.save(product);
-
-      // Build OrderItem
+      // Build Order Item
       OrderItem orderItem =
           OrderItem.builder()
               .order(order)
@@ -69,7 +67,6 @@ public class OrderService {
     order.setTotalPrice(totalPrice);
     order.setOrderItems(orderItems);
 
-    // Fixed: Actually save the order to the database before returning
-    return orderRepository.save(order);
+    return orderRepository.save(order); // Save the complete order
   }
 }
