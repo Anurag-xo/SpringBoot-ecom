@@ -1,7 +1,7 @@
 package in.anurag.CreatorStore.services;
 
-// Consider renaming to OrderRequest (see section 3)
 import in.anurag.CreatorStore.dto.OrderItemRequest;
+import in.anurag.CreatorStore.dto.OrderRequest;
 import in.anurag.CreatorStore.entities.Order;
 import in.anurag.CreatorStore.entities.OrderItem;
 import in.anurag.CreatorStore.entities.Product;
@@ -24,8 +24,8 @@ public class OrderService {
   public Order createOrder(OrderRequest orderRequest) {
     List<OrderItem> orderItems = new ArrayList<>();
     BigDecimal totalPrice = BigDecimal.ZERO;
-    Order order = new Order();
 
+    Order order = new Order();
     order.setCustomerName(orderRequest.getCustomerName()); // Fixed typo
     order.setCustomerEmail(orderRequest.getCustomerEmail());
     order.setStatus("CONFIRMED");
@@ -48,12 +48,13 @@ public class OrderService {
           product.getPrice().multiply(BigDecimal.valueOf(itemRequest.getQuantity()));
       totalPrice = totalPrice.add(priceOfItem);
 
-      // Fixed syntax error (removed extra ");")
+      // Update stock (Fixed syntax error: removed extra ");")
       product.setStockQuantity(product.getStockQuantity() - itemRequest.getQuantity());
 
       // Fixed: use the injected instance 'productRepository', not the class name
       productRepository.save(product);
 
+      // Build OrderItem
       OrderItem orderItem =
           OrderItem.builder()
               .order(order)
