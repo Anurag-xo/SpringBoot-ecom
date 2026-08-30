@@ -27,7 +27,7 @@ import lombok.Setter;
 public class Order {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long Id;
+  private Long id;
 
   @Column(name = "customer_name", nullable = false)
   private String customerName;
@@ -43,13 +43,13 @@ public class Order {
 
   @JsonManagedReference
   @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
-  private List<OrderItem> OrderItems;
+  private List<OrderItem> orderItems;
 
   @Column(name = "created_at")
   private LocalDateTime createdAt;
 
   @PrePersist
-  public void prePresist() {
+  public void prePersist() {
     this.createdAt = LocalDateTime.now();
   }
 }
