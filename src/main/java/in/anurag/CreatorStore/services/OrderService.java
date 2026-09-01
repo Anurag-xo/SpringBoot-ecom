@@ -36,7 +36,7 @@ public class OrderService {
               .findById(itemRequest.getProductId())
               .orElseThrow(
                   () ->
-                      new RuntimeException(
+                      new ResourceNotFoundException(
                           "Product not found with id: " + itemRequest.getProductId()));
 
       if (product.getStockQuantity() < itemRequest.getQuantity()) {
