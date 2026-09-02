@@ -1,6 +1,7 @@
 package in.anurag.CreatorStore.services;
 
 import in.anurag.CreatorStore.entities.Product;
+import in.anurag.CreatorStore.exceptions.ResourceNotFoundException;
 import in.anurag.CreatorStore.repositories.ProductRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -37,7 +38,7 @@ public class ProductService {
   public Product getProductById(Long id) {
     return productRepository
         .findById(id)
-        .orElseThrow(() -> new RuntimeException("Product not found with id: " + id));
+        .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
   }
 
   public void deleteProduct(Long id) {
