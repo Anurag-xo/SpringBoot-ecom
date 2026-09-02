@@ -20,7 +20,7 @@ public class ProductService {
     Product existingProduct =
         productRepository
             .findById(id)
-            .orElseThrow(() -> new RuntimeException("Product not found with id: " + id));
+            .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
 
     existingProduct.setName(productDetails.getName());
     existingProduct.setDescription(productDetails.getDescription());
