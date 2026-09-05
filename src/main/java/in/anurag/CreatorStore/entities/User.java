@@ -1,6 +1,8 @@
 package in.anurag.CreatorStore.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import java.awt.List;
 import java.util.HashSet;
 import java.util.Set;
 import lombok.*;
@@ -33,4 +35,9 @@ public class User {
 
   @Column(name = "is_enabled", nullable = false)
   private boolean enabled = true;
+
+  // One user can have many orders
+  @JsonIgnore
+  @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+  private List<Order> orders;
 }
