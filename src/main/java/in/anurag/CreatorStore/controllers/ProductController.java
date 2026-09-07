@@ -3,8 +3,8 @@ package in.anurag.CreatorStore.controllers;
 import in.anurag.CreatorStore.entities.Product;
 import in.anurag.CreatorStore.services.ProductService;
 import jakarta.validation.Valid;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -16,10 +16,18 @@ public class ProductController {
 
   private final ProductService productService;
 
-  // Public endpoints - anyone can view products
   @GetMapping
-  public ResponseEntity<List<Product>> getAllProducts() {
-    return ResponseEntity.ok(productService.getAllProducts());
+  public ResponseEntity<Page<Product>> getAllProducts(
+      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "10") int size,
+      @RequestParam(defaultValue = "id") String sortBy,
+      @RequestParam(defaultValue = "asc") String sortDir,
+      @RequestParam(required = false) String category,
+      @RequestParam(required = false) String search) {
+
+    Page<Product> products =
+        productService.getAllProducts(page, size, sortBy, sortDir, category, search);
+    return ResponseEntity.ok(products);
   }
 
   @GetMapping("/{id}")
@@ -27,7 +35,6 @@ public class ProductController {
     return ResponseEntity.ok(productService.getProductById(id));
   }
 
-  // Admin-only endpoints - require ADMIN role
   @PreAuthorize("hasRole('ADMIN')")
   @PostMapping
   public ResponseEntity<Product> createProduct(@Valid @RequestBody Product product) {
