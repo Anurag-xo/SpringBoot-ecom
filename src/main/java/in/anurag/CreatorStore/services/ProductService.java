@@ -5,6 +5,10 @@ import in.anurag.CreatorStore.exceptions.ResourceNotFoundException;
 import in.anurag.CreatorStore.repositories.ProductRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -43,5 +47,35 @@ public class ProductService {
 
   public void deleteProduct(Long id) {
     productRepository.deleteById(id);
+  }
+
+  // NEW: Paginated, sorted, and filtered product retrieval
+  public Page<Product> getAllProducts(
+      int page, int size, String sortBy, String sortDir, String category, String search) {
+
+    // 1. Determine sort direction
+    Sort sort =
+        sortDir.equalsIgnoreCase("asc")
+            ? Sort.by(sortBy).ascending()
+            : Sort.by(sortBy).descending();
+
+    // 2. Create Pageable object
+    Pageable pageable = PageRequest.of(page, size, sort);
+
+    // 3. Apply filters dynamically
+    boolean hasCategory = category != null && !category.trim().isEmpty();
+    boolean hasSearch = search != null && !search.trim().isEmpty();
+
+    if (hasCategory && hasSearch) {
+      return productRepository.findByCategoryIgnoreCaseAndNameContainingIgnoreCase(
+          category, search, pageable);
+    } else if (hasCategory) {
+      return productRepository.findByCategoryIgnoreCase(category, pageable);
+    } else if (hasSearch) {
+      return productRepository.findByNameContainingIgnoreCase(search, pageable);
+    } else {
+      // No filters applied, return all products paginated
+      return productRepository.findAll(pageable);
+    }
   }
 }
