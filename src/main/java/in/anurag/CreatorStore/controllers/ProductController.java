@@ -3,6 +3,7 @@ package in.anurag.CreatorStore.controllers;
 import in.anurag.CreatorStore.entities.Product;
 import in.anurag.CreatorStore.services.ProductService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
@@ -18,8 +19,11 @@ public class ProductController {
 
   @GetMapping
   public ResponseEntity<Page<Product>> getAllProducts(
-      @RequestParam(defaultValue = "0") int page,
-      @RequestParam(defaultValue = "10") int size,
+      @RequestParam(defaultValue = "0")
+          @Min(value = 0, message = "Page number must be 0 or greater")
+          int page,
+      @RequestParam(defaultValue = "10") @Min(value = 1, message = "Page size must be at least 1")
+          int size,
       @RequestParam(defaultValue = "id") String sortBy,
       @RequestParam(defaultValue = "asc") String sortDir,
       @RequestParam(required = false) String category,
