@@ -10,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/products")
@@ -61,22 +62,21 @@ public class ProductController {
     return ResponseEntity.noContent().build();
   }
 
+  // Upload Image Endpoint
   @PreAuthorize("hasRole('ADMIN')")
   @PostMapping("/{id}/image")
   public ResponseEntity<Product> uploadProductImage(
-    @PathVariable Long id;
-    @RequestParam("file") MultipartFile file) {
+      @PathVariable Long id, @RequestParam("file") MultipartFile file) {
 
-    // save the file and get the unique filename
+    // 1. Save the file and get the unique filename
     String fileName = fileStorageService.storeFile(file);
 
-    // create the URL path that the frontend will use to access the image
+    // 2. Create the URL path that the frontend will use to access the image
     String imageUrl = "/uploads/" + fileName;
 
-    // update the product in the database with the new image url
-    Product updateProduct = productService.updateProductImage(id, imageUrl);
+    // 3. Update the product in the database with the new image URL
+    Product updatedProduct = productService.updateProductImage(id, imageUrl);
 
     return ResponseEntity.ok(updatedProduct);
-    }
-  )
+  }
 }
