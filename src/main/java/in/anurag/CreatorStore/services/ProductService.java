@@ -49,6 +49,17 @@ public class ProductService {
     productRepository.deleteById(id);
   }
 
+  // to update the image url of the product
+  public Product updateProductImage(Long id, String imageUrl) {
+    Product product =
+        productRepository
+            .findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
+
+    product.setImageUrl(imageUrl);
+    return productRepository.save(product);
+  }
+
   // NEW: Paginated, sorted, and filtered product retrieval
   public Page<Product> getAllProducts(
       int page, int size, String sortBy, String sortDir, String category, String search) {
