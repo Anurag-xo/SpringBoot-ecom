@@ -1,6 +1,7 @@
 package in.anurag.CreatorStore.controllers;
 
 import in.anurag.CreatorStore.entities.Product;
+import in.anurag.CreatorStore.services.FileStorageService;
 import in.anurag.CreatorStore.services.ProductService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -9,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/products")
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 public class ProductController {
 
   private final ProductService productService;
+  private final FileStorageService fileStorageService;
 
   @GetMapping
   public ResponseEntity<Page<Product>> getAllProducts(
@@ -57,5 +60,23 @@ public class ProductController {
   public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
     productService.deleteProduct(id);
     return ResponseEntity.noContent().build();
+  }
+
+  // Upload Image Endpoint
+  @PreAuthorize("hasRole('ADMIN')")
+  @PostMapping("/{id}/image")
+  public ResponseEntity<Product> uploadProductImage(
+      @PathVariable Long id, @RequestParam("file") MultipartFile file) {
+
+    // 1. Save the file and get the unique filename
+    String fileName = fileStorageService.storeFile(file);
+
+    // 2. Create the URL path that the frontend will use to access the image
+    String imageUrl = "/uploads/" + fileName;
+
+    // 3. Update the product in the database with the new image URL
+    Product updatedProduct = productService.updateProductImage(id, imageUrl);
+
+    return ResponseEntity.ok(updatedProduct);
   }
 }

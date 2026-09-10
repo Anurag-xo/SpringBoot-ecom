@@ -30,6 +30,11 @@ spring:
       enabled: true
       path: /h2-console
 
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
 # JWT config
 jwt:
   secret: YourSuperSecretKeyForJWTTokenGenerationMustBeAtLeast256BitsLong123456

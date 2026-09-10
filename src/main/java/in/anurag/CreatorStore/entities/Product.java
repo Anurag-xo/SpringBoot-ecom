@@ -42,4 +42,7 @@ public class Product {
   @JsonIgnore
   @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
   private List<OrderItem> orderItems;
+
+  @Column(name = "image_url")
+  private String imageUrl;
 }
