@@ -4,6 +4,7 @@ import in.anurag.CreatorStore.dto.OrderItemRequest;
 import in.anurag.CreatorStore.dto.OrderRequest;
 import in.anurag.CreatorStore.entities.Order;
 import in.anurag.CreatorStore.entities.OrderItem;
+import in.anurag.CreatorStore.entities.OrderStatus;
 import in.anurag.CreatorStore.entities.Product;
 import in.anurag.CreatorStore.entities.User;
 import in.anurag.CreatorStore.exceptions.ResourceNotFoundException;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class OrderService {
+
   private final OrderRepository orderRepository;
   private final ProductRepository productRepository;
 
@@ -31,8 +33,8 @@ public class OrderService {
     Order order = new Order();
     order.setCustomerName(orderRequest.getCustomerName());
     order.setCustomerEmail(orderRequest.getCustomerEmail());
-    order.setStatus("CONFIRMED");
-    order.setUser(user); // Link order to user
+    order.setStatus(OrderStatus.PENDING); // Changed from "CONFIRMED" to PENDING
+    order.setUser(user);
 
     for (OrderItemRequest itemRequest : orderRequest.getItems()) {
       Product product =
@@ -102,5 +104,51 @@ public class OrderService {
     return orderRepository
         .findById(id)
         .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + id));
+  }
+
+  // NEW: ADMIN - Update order status
+  @Transactional
+  public Order updateOrderStatus(Long orderId, OrderStatus newStatus) {
+    Order order =
+        orderRepository
+            .findById(orderId)
+            .orElseThrow(
+                () -> new ResourceNotFoundException("Order not found with id: " + orderId));
+
+    order.setStatus(newStatus);
+    return orderRepository.save(order);
+  }
+
+  // NEW: USER - Cancel their own PENDING order
+  @Transactional
+  public Order cancelOrder(Long orderId, User currentUser) {
+    Order order =
+        orderRepository
+            .findById(orderId)
+            .orElseThrow(
+                () -> new ResourceNotFoundException("Order not found with id: " + orderId));
+
+    // 1. Security Check: Ensure the order belongs to the current user
+    if (!order.getUser().getId().equals(currentUser.getId())) {
+      throw new RuntimeException("You do not have permission to cancel this order");
+    }
+
+    // 2. Business Logic Check: Can only cancel PENDING orders
+    if (order.getStatus() != OrderStatus.PENDING) {
+      throw new RuntimeException(
+          "Only PENDING orders can be cancelled. Current status: " + order.getStatus());
+    }
+
+    // 3. Update Status
+    order.setStatus(OrderStatus.CANCELLED);
+
+    // 4. Restore Stock Quantity (Senior-level best practice!)
+    for (OrderItem item : order.getOrderItems()) {
+      Product product = item.getProduct();
+      product.setStockQuantity(product.getStockQuantity() + item.getQuantity());
+      productRepository.save(product);
+    }
+
+    return orderRepository.save(order);
   }
 }
