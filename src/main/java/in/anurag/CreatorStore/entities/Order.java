@@ -3,6 +3,7 @@ package in.anurag.CreatorStore.entities;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
+import jakarta.persistence.Enumerated;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -25,8 +26,9 @@ public class Order {
   @Column(name = "customer_email", nullable = false)
   private String customerEmail;
 
+  @Enumerated(EnumType.STRING)
   @Column(nullable = false)
-  private String status;
+  private OrderStatus status;
 
   @Column(name = "total_price", nullable = false)
   private BigDecimal totalPrice;
@@ -48,5 +50,13 @@ public class Order {
   public void prePersist() {
     this.createdAt = LocalDateTime.now();
     if (this.status == null) this.status = "PENDING";
+  }
+
+  @PrePersist
+  public void prePersist() {
+    this.createdAt = LocalDateTime.now();
+    if (this.status == null) {
+      this.status = OrderStatus.PENDING;
+    }
   }
 }
