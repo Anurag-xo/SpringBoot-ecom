@@ -45,13 +45,7 @@ public class Order {
 
   @Column(name = "created_at")
   private LocalDateTime createdAt;
-
-  @PrePersist
-  public void prePersist() {
-    this.createdAt = LocalDateTime.now();
-    if (this.status == null) this.status = "PENDING";
-  }
-
+  
   @PrePersist
   public void prePersist() {
     this.createdAt = LocalDateTime.now();
