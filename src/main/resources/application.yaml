@@ -2,41 +2,44 @@ spring:
   application:
     name: CreatorStore
 
-  # --- OPTION A: H2 In-Memory Database (Recommended for immediate testing) ---
+  # PostgreSQL configuration (used in Docker)
   datasource:
-    url: jdbc:h2:mem:creatorstore
-    username: sa
-    password:
-    driver-class-name: org.h2.Driver
-
-  # --- OPTION B: PostgreSQL (Uncomment and use .env file for this) ---
-  # datasource:
-  #   url: ${DATABASE_URL}
-  #   username: ${DATABASE_USERNAME}
-  #   password: ${DATABASE_PASSWORD}
-  #   driver-class-name: org.postgresql.Driver
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/creatorstore}
+    username: ${DATABASE_USERNAME:postgres}
+    password: ${DATABASE_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false # Disable in production
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.H2Dialect # Change to PostgreSQLDialect if using Postgres
-
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
+        dialect: org.hibernate.dialect.PostgreSQLDialect
 
   servlet:
     multipart:
       max-file-size: 5MB
       max-request-size: 5MB
 
-# JWT config
+# JWT Configuration
 jwt:
-  secret: YourSuperSecretKeyForJWTTokenGenerationMustBeAtLeast256BitsLong123456
-  expiration: 86400000 # 24 hours in milliseconds
+  secret: ${JWT_SECRET:YourSuperSecretKeyForJWTTokenGenerationMustBeAtLeast256BitsLong123456}
+  expiration: ${JWT_EXPIRATION:86400000}
 
+# Admin user initialization
+admin:
+  username: ${ADMIN_USERNAME:admin}
+  email: ${ADMIN_EMAIL:admin@creatorstore.com}
+  password: ${ADMIN_PASSWORD:admin123}
+
+# Server configuration
+server:
+  port: 8080
+
+# Logging
+logging:
+  level:
+    root: INFO
+    in.anurag.CreatorStore: INFO
