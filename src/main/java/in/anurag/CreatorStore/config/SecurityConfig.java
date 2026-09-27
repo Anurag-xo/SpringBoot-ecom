@@ -1,7 +1,7 @@
 package in.anurag.CreatorStore.config;
 
 import in.anurag.CreatorStore.security.JwtAuthenticationFilter;
-import in.anurag.CreatorStore.security.RateLimitingFilter; // <-- Add this import
+import in.anurag.CreatorStore.security.RateLimitingFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,7 +23,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
     
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    private final RateLimitingFilter rateLimitingFilter; // <-- Add this field
+    private final RateLimitingFilter rateLimitingFilter;
     
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -40,8 +40,10 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             .headers(headers -> headers.frameOptions(frame -> frame.disable()))
-            // Rate limiting runs FIRST (before JWT)
-            .addFilterBefore(rateLimitingFilter, JwtAuthenticationFilter.class)
+            
+            // ✅ FIX: Add BOTH custom filters before the standard UsernamePasswordAuthenticationFilter
+            // Spring Security will process them in the order they are added here.
+            .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         
         return http.build();
