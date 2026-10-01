@@ -46,3 +46,15 @@ logging:
   level:
     root: INFO
     in.anurag.CreatorStore: INFO
+
+mail:
+  host: ${MAIL_HOST:smtp.mailtrap.io} # e.g., smtp.mailtrap.io or smtp.gmail.com
+  port: ${MAIL_PORT:587} # 587 for TLS
+  username: ${MAIL_USERNAME:your_mailtrap_user}
+  password: ${MAIL_PASSWORD:your_mailtrap_pass}
+  properties:
+    mail:
+      smtp:
+        auth: true
+        starttls:
+          enable: true
