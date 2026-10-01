@@ -23,8 +23,8 @@ public class OrderService {
 
   private final OrderRepository orderRepository;
   private final ProductRepository productRepository;
+  private final EmailService emailService; // <-- Injected Email Service
 
-  // Create order and link it to the authenticated user
   @Transactional
   public Order createOrder(OrderRequest orderRequest, User user) {
     List<OrderItem> orderItems = new ArrayList<>();
@@ -33,7 +33,7 @@ public class OrderService {
     Order order = new Order();
     order.setCustomerName(orderRequest.getCustomerName());
     order.setCustomerEmail(orderRequest.getCustomerEmail());
-    order.setStatus(OrderStatus.PENDING); // Changed from "CONFIRMED" to PENDING
+    order.setStatus(OrderStatus.PENDING);
     order.setUser(user);
 
     for (OrderItemRequest itemRequest : orderRequest.getItems()) {
@@ -71,27 +71,29 @@ public class OrderService {
     order.setTotalPrice(totalPrice);
     order.setOrderItems(orderItems);
 
-    return orderRepository.save(order);
+    // Save and assign to savedOrder variable
+    Order savedOrder = orderRepository.save(order);
+
+    // Trigger async email notification
+    emailService.sendOrderConfirmationEmail(user, savedOrder);
+
+    return savedOrder;
   }
 
-  // Get orders for a specific user
   public List<Order> getOrdersByUser(User user) {
     return orderRepository.findByUserOrderByCreatedAtDesc(user);
   }
 
-  // Get all orders (for admin)
   public List<Order> getAllOrders() {
     return orderRepository.findAllByOrderByCreatedAtDesc();
   }
 
-  // Get a single order by ID (with user verification)
   public Order getOrderById(Long id, User user) {
     Order order =
         orderRepository
             .findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + id));
 
-    // Verify the order belongs to this user
     if (!order.getUser().getId().equals(user.getId())) {
       throw new RuntimeException("You don't have permission to view this order");
     }
@@ -99,14 +101,12 @@ public class OrderService {
     return order;
   }
 
-  // Get a single order by ID (for admin - no user verification)
   public Order getOrderByIdForAdmin(Long id) {
     return orderRepository
         .findById(id)
         .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + id));
   }
 
-  // NEW: ADMIN - Update order status
   @Transactional
   public Order updateOrderStatus(Long orderId, OrderStatus newStatus) {
     Order order =
@@ -119,7 +119,6 @@ public class OrderService {
     return orderRepository.save(order);
   }
 
-  // NEW: USER - Cancel their own PENDING order
   @Transactional
   public Order cancelOrder(Long orderId, User currentUser) {
     Order order =
@@ -128,27 +127,29 @@ public class OrderService {
             .orElseThrow(
                 () -> new ResourceNotFoundException("Order not found with id: " + orderId));
 
-    // 1. Security Check: Ensure the order belongs to the current user
     if (!order.getUser().getId().equals(currentUser.getId())) {
       throw new RuntimeException("You do not have permission to cancel this order");
     }
 
-    // 2. Business Logic Check: Can only cancel PENDING orders
     if (order.getStatus() != OrderStatus.PENDING) {
       throw new RuntimeException(
           "Only PENDING orders can be cancelled. Current status: " + order.getStatus());
     }
 
-    // 3. Update Status
     order.setStatus(OrderStatus.CANCELLED);
 
-    // 4. Restore Stock Quantity (Senior-level best practice!)
     for (OrderItem item : order.getOrderItems()) {
       Product product = item.getProduct();
       product.setStockQuantity(product.getStockQuantity() + item.getQuantity());
       productRepository.save(product);
     }
 
-    return orderRepository.save(order);
+    // Save and assign to cancelledOrder variable
+    Order cancelledOrder = orderRepository.save(order);
+
+    // Trigger async email notification
+    emailService.sendOrderCancellationEmail(currentUser, cancelledOrder);
+
+    return cancelledOrder;
   }
 }

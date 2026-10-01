@@ -1,0 +1,64 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Order Confirmation</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+      }
+      .header {
+        background-color: #4caf50;
+        color: white;
+        padding: 10px;
+        text-align: center;
+        border-radius: 8px 8px 0 0;
+      }
+      .total {
+        font-size: 1.2em;
+        font-weight: bold;
+        color: #4caf50;
+      }
+      .footer {
+        margin-top: 20px;
+        font-size: 0.9em;
+        color: #777;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h2>Order Confirmed! 🎉</h2>
+      </div>
+      <p>Hi <strong th:text="${user.username}">User</strong>,</p>
+      <p>
+        Thank you for your purchase! Your order has been successfully placed.
+      </p>
+
+      <h3>Order Details:</h3>
+      <p><strong>Order ID:</strong> <span th:text="${order.id}">123</span></p>
+      <p>
+        <strong>Status:</strong> <span th:text="${order.status}">PENDING</span>
+      </p>
+      <p class="total">
+        Total: $<span th:text="${order.totalPrice}">0.00</span>
+      </p>
+
+      <div class="footer">
+        <p>If you have any questions, reply to this email.</p>
+        <p>© 2026 CreatorStore. All rights reserved.</p>
+      </div>
+    </div>
+  </body>
+</html>
