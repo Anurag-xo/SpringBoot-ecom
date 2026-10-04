@@ -16,7 +16,6 @@ spring:
     properties:
       hibernate:
         format_sql: true
-        # REMOVED: dialect property. Spring Boot will auto-detect H2 or PostgreSQL automatically!
 
   h2:
     console:
@@ -27,6 +26,18 @@ spring:
     multipart:
       max-file-size: 5MB
       max-request-size: 5MB
+
+  mail:
+    host: smtp.mailtrap.io
+    port: 587
+    username: your_mailtrap_user # REPLACE THIS with your actual Mailtrap username
+    password: your_mailtrap_pass # REPLACE THIS with your actual Mailtrap password
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 # JWT Configuration
 jwt:
@@ -46,28 +57,3 @@ logging:
   level:
     root: INFO
     in.anurag.CreatorStore: INFO
-
-  # mail:
-  #   host: ${MAIL_HOST:smtp.mailtrap.io} # e.g., smtp.mailtrap.io or smtp.gmail.com
-  #   port: ${MAIL_PORT:587} # 587 for TLS
-  #   username: ${MAIL_USERNAME:your_mailtrap_user}
-  #   password: ${MAIL_PASSWORD:your_mailtrap_pass}
-  #   properties:
-  #     mail:
-  #       smtp:
-  #         auth: true
-  #         starttls:
-  #           enable: true
-  #
-
-  mail:
-    host: smtp.mailtrap.io
-    port: 587
-    username: your_mailtrap_user
-    password: your_mailtrap_pass
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
