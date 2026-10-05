@@ -1,7 +1,6 @@
 version: "3.8"
 
 services:
-  # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
     container_name: creatorstore-db
@@ -21,7 +20,32 @@ services:
       timeout: 5s
       retries: 5
 
-  # Spring Boot Application
+  # NEW: Meilisearch Search Engine
+  meilisearch:
+    image: getmeili/meilisearch:v1.10
+    container_name: creatorstore-search
+    environment:
+      MEILI_MASTER_KEY: your_master_key_here
+      MEILI_ENV: development
+    ports:
+      - "7700:7700"
+    volumes:
+      - meilisearch_data:/meili_data
+    networks:
+      - creatorstore-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--spider",
+          "http://localhost:7700/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   app:
     build:
       context: .
@@ -30,14 +54,14 @@ services:
     ports:
       - "8080:8080"
     environment:
-      # Database connection (points to the postgres service)
       DATABASE_URL: jdbc:postgresql://postgres:5432/creatorstore
       DATABASE_USERNAME: postgres
       DATABASE_PASSWORD: postgres
-      # JWT secret (CHANGE THIS IN PRODUCTION!)
+      # NEW: Meilisearch connection
+      MEILISEARCH_URL: http://meilisearch:7700
+      MEILISEARCH_KEY: your_master_key_here
       JWT_SECRET: YourSuperSecretKeyForJWTTokenGenerationMustBeAtLeast256BitsLong123456
       JWT_EXPIRATION: 86400000
-      # Admin user
       ADMIN_USERNAME: admin
       ADMIN_EMAIL: admin@creatorstore.com
       ADMIN_PASSWORD: admin123
@@ -46,12 +70,16 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      meilisearch:
+        condition: service_healthy
     networks:
       - creatorstore-network
     restart: unless-stopped
 
 volumes:
   postgres_data:
+    driver: local
+  meilisearch_data:
     driver: local
   app_uploads:
     driver: local

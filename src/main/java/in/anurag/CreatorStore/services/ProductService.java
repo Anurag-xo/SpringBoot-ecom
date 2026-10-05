@@ -10,16 +10,24 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 public class ProductService {
-  private final ProductRepository productRepository;
 
+  private final ProductRepository productRepository;
+  private final SearchService searchService;
+
+  @Transactional
   public Product createProduct(Product product) {
-    return productRepository.save(product);
+    Product savedProduct = productRepository.save(product);
+    // Sync to Meilisearch asynchronously
+    searchService.indexProduct(savedProduct);
+    return savedProduct;
   }
 
+  @Transactional
   public Product updateProduct(Long id, Product productDetails) {
     Product existingProduct =
         productRepository
@@ -32,7 +40,10 @@ public class ProductService {
     existingProduct.setPrice(productDetails.getPrice());
     existingProduct.setStockQuantity(productDetails.getStockQuantity());
 
-    return productRepository.save(existingProduct);
+    Product savedProduct = productRepository.save(existingProduct);
+    // Sync updated data to Meilisearch asynchronously
+    searchService.indexProduct(savedProduct);
+    return savedProduct;
   }
 
   public List<Product> getAllProducts() {
@@ -45,11 +56,14 @@ public class ProductService {
         .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
   }
 
+  @Transactional
   public void deleteProduct(Long id) {
     productRepository.deleteById(id);
+    // Remove from Meilisearch asynchronously
+    searchService.deleteProductFromIndex(id);
   }
 
-  // to update the image url of the product
+  @Transactional
   public Product updateProductImage(Long id, String imageUrl) {
     Product product =
         productRepository
@@ -57,10 +71,13 @@ public class ProductService {
             .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
 
     product.setImageUrl(imageUrl);
-    return productRepository.save(product);
+    Product savedProduct = productRepository.save(product);
+    // Sync updated image URL to Meilisearch asynchronously
+    searchService.indexProduct(savedProduct);
+    return savedProduct;
   }
 
-  // NEW: Paginated, sorted, and filtered product retrieval
+  // Paginated, sorted, and filtered product retrieval
   public Page<Product> getAllProducts(
       int page, int size, String sortBy, String sortDir, String category, String search) {
 
