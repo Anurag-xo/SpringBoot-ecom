@@ -23,7 +23,7 @@ public class OrderService {
 
   private final OrderRepository orderRepository;
   private final ProductRepository productRepository;
-  private final EmailService emailService; // <-- Injected Email Service
+  private final EmailService emailService;
 
   @Transactional
   public Order createOrder(OrderRequest orderRequest, User user) {
@@ -71,10 +71,7 @@ public class OrderService {
     order.setTotalPrice(totalPrice);
     order.setOrderItems(orderItems);
 
-    // Save and assign to savedOrder variable
     Order savedOrder = orderRepository.save(order);
-
-    // Trigger async email notification
     emailService.sendOrderConfirmationEmail(user, savedOrder);
 
     return savedOrder;
@@ -144,12 +141,23 @@ public class OrderService {
       productRepository.save(product);
     }
 
-    // Save and assign to cancelledOrder variable
     Order cancelledOrder = orderRepository.save(order);
-
-    // Trigger async email notification
     emailService.sendOrderCancellationEmail(currentUser, cancelledOrder);
 
     return cancelledOrder;
   }
-}
+
+  // NEW: System-initiated cancellation for expired pending orders (used by Scheduled Tasks)
+  @Transactional
+  public Order cancelExpiredPendingOrder(Order order) {
+    order.setStatus(OrderStatus.CANCELLED);
+
+    for (OrderItem item : order.getOrderItems()) {
+      Product product = item.getProduct();
+      product.setStockQuantity(product.getStockQuantity() + item.getQuantity());
+      productRepository.save(product);
+    }
+
+    return orderRepository.save(order);
+  }
+} // <-- THIS CLOSING BRACE IS CRUCIAL
