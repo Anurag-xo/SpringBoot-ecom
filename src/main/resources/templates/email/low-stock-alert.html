@@ -1,0 +1,79 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Low Stock Alert</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+      }
+      .header {
+        background-color: #ff9800;
+        color: white;
+        padding: 10px;
+        text-align: center;
+        border-radius: 8px 8px 0 0;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+      th {
+        background-color: #f2f2f2;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h2>⚠️ Low Stock Alert</h2>
+      </div>
+      <p>Hello Admin,</p>
+      <p>
+        The following products are running low on stock (less than 10 units):
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Product Name</th>
+            <th>Category</th>
+            <th>Remaining Stock</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr th:each="product : ${products}">
+            <td th:text="${product.name}">Product Name</td>
+            <td th:text="${product.category}">Category</td>
+            <td
+              th:text="${product.stockQuantity}"
+              style="color: red; font-weight: bold"
+            >
+              0
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p style="margin-top: 20px">
+        Please restock these items soon to avoid losing sales.
+      </p>
+    </div>
+  </body>
+</html>

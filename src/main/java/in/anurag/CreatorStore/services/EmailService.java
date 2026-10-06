@@ -1,9 +1,11 @@
 package in.anurag.CreatorStore.services;
 
 import in.anurag.CreatorStore.entities.Order;
+import in.anurag.CreatorStore.entities.Product;
 import in.anurag.CreatorStore.entities.User;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -62,6 +64,30 @@ public class EmailService {
       log.error("❌ Failed to send email to: {}. Error: {}", to, e.getMessage());
       // Note: We don't throw the exception here to prevent it from crashing the main thread,
       // but in production, you might want to log this to a monitoring system (e.g., Sentry).
+    }
+  }
+
+  @Async
+  public void sendLowStockAlertEmail(String adminEmail, List<Product> lowStockProducts) {
+    log.info("Preparing to send low stock alert to: {}", adminEmail);
+    try {
+      MimeMessage message = mailSender.createMimeMessage();
+      MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+      helper.setTo(adminEmail);
+      helper.setSubject("⚠️ Low Stock Alert - CreatorStore");
+      helper.setFrom("noreply@creatorstore.com");
+
+      Context context = new Context();
+      context.setVariable("products", lowStockProducts);
+      String htmlContent = templateEngine.process("email/low-stock-alert", context);
+
+      helper.setText(htmlContent, true);
+      mailSender.send(message);
+
+      log.info("✅ Low stock alert sent successfully to: {}", adminEmail);
+    } catch (MessagingException e) {
+      log.error("❌ Failed to send low stock alert to: {}. Error: {}", adminEmail, e.getMessage());
     }
   }
 }
