@@ -1,9 +1,7 @@
 package in.anurag.CreatorStore.entities;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import java.util.HashSet;
-import java.util.List;
+import java.time.LocalDateTime;
 import java.util.Set;
 import lombok.*;
 
@@ -31,15 +29,16 @@ public class User {
   @ElementCollection(fetch = FetchType.EAGER)
   @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
   @Column(name = "role")
-  @Builder.Default
-  private Set<String> roles = new HashSet<>();
+  private Set<String> roles;
 
-  @Column(name = "is_enabled", nullable = false)
-  @Builder.Default
-  private boolean enabled = true;
+  @Column(nullable = false)
+  private boolean enabled;
 
-  // One user can have many orders
-  @JsonIgnore
-  @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-  private List<Order> orders;
+  @Column(name = "created_at")
+  private LocalDateTime createdAt;
+
+  @PrePersist
+  public void prePersist() {
+    this.createdAt = LocalDateTime.now();
+  }
 }
