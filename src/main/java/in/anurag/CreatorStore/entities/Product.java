@@ -1,12 +1,8 @@
 package in.anurag.CreatorStore.entities;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.*;
 
@@ -18,31 +14,40 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class Product {
+
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
-  @NotBlank(message = "Product name is required")
   @Column(nullable = false)
   private String name;
 
+  @Column(length = 1000)
   private String description;
+
   private String category;
 
-  @NotNull(message = "Price is required")
-  @DecimalMin(value = "0.0", inclusive = false, message = "Price must be greater than 0")
+  @Column(nullable = false, precision = 10, scale = 2)
+  private BigDecimal price; // Base price (can be overridden by variants)
+
   @Column(nullable = false)
-  private BigDecimal price;
+  private Integer stockQuantity; // Total stock across all variants
 
-  @NotNull(message = "Stock quantity is required")
-  @Min(value = 0, message = "Stock cannot be less than 0")
-  @Column(name = "stock_quantity", nullable = false)
-  private Integer stockQuantity;
-
-  @JsonIgnore
-  @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
-  private List<OrderItem> orderItems;
-
-  @Column(name = "image_url")
   private String imageUrl;
+
+  @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+  @Builder.Default
+  private List<ProductVariant> variants = new ArrayList<>();
+
+  // Helper method to add a variant
+  public void addVariant(ProductVariant variant) {
+    variants.add(variant);
+    variant.setProduct(this);
+  }
+
+  // Helper method to remove a variant
+  public void removeVariant(ProductVariant variant) {
+    variants.remove(variant);
+    variant.setProduct(null);
+  }
 }
