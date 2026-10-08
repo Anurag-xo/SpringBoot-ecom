@@ -8,10 +8,13 @@ import in.anurag.CreatorStore.entities.Cart;
 import in.anurag.CreatorStore.entities.CartItem;
 import in.anurag.CreatorStore.entities.Order;
 import in.anurag.CreatorStore.entities.Product;
+import in.anurag.CreatorStore.entities.ProductVariant;
 import in.anurag.CreatorStore.entities.User;
 import in.anurag.CreatorStore.exceptions.ResourceNotFoundException;
 import in.anurag.CreatorStore.repositories.CartRepository;
 import in.anurag.CreatorStore.repositories.ProductRepository;
+import in.anurag.CreatorStore.repositories.ProductVariantRepository;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +27,7 @@ public class CartService {
 
   private final CartRepository cartRepository;
   private final ProductRepository productRepository;
+  private final ProductVariantRepository variantRepository;
   private final OrderService orderService;
 
   public Cart getCart(User user) {
@@ -40,31 +44,55 @@ public class CartService {
     Product product =
         productRepository
             .findById(request.getProductId())
-            .orElseThrow(
-                () ->
-                    new ResourceNotFoundException(
-                        "Product not found with id: " + request.getProductId()));
+            .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+
+    ProductVariant variant = null;
+    BigDecimal price = product.getPrice();
+    int availableStock = product.getStockQuantity();
+
+    if (request.getVariantId() != null) {
+      variant =
+          variantRepository
+              .findById(request.getVariantId())
+              .orElseThrow(() -> new ResourceNotFoundException("Variant not found"));
+
+      if (!variant.getProduct().getId().equals(product.getId())) {
+        throw new RuntimeException("Variant does not belong to this product");
+      }
+      if (!variant.getActive()) {
+        throw new RuntimeException("This variant is not available");
+      }
+      price = variant.getPrice();
+      availableStock = variant.getStockQuantity();
+    }
+
+    if (availableStock < request.getQuantity()) {
+      throw new RuntimeException("Not enough stock available");
+    }
 
     Cart cart = getCart(user);
 
-    // Check if product is already in cart
     CartItem existingItem =
         cart.getItems().stream()
-            .filter(item -> item.getProduct().getId().equals(request.getProductId()))
+            .filter(
+                item ->
+                    item.getProduct().getId().equals(product.getId())
+                        && ((item.getVariant() == null && request.getVariantId() == null)
+                            || (item.getVariant() != null
+                                && item.getVariant().getId().equals(request.getVariantId()))))
             .findFirst()
             .orElse(null);
 
     if (existingItem != null) {
-      // If exists, just increase quantity
       existingItem.setQuantity(existingItem.getQuantity() + request.getQuantity());
     } else {
-      // If new, add to cart with current price snapshot
       CartItem newItem =
           CartItem.builder()
               .cart(cart)
               .product(product)
+              .variant(variant)
               .quantity(request.getQuantity())
-              .price(product.getPrice())
+              .price(price)
               .build();
       cart.getItems().add(newItem);
     }
@@ -94,7 +122,7 @@ public class CartService {
             .findFirst()
             .orElseThrow(() -> new ResourceNotFoundException("Cart item not found"));
 
-    cart.getItems().remove(item); // orphanRemoval = true deletes it from DB
+    cart.getItems().remove(item);
     return cartRepository.save(cart);
   }
 
@@ -114,7 +142,6 @@ public class CartService {
       throw new RuntimeException("Cannot checkout an empty cart");
     }
 
-    // 1. Build OrderRequest from Cart items
     OrderRequest orderRequest = new OrderRequest();
     orderRequest.setCustomerName(user.getUsername());
     orderRequest.setCustomerEmail(user.getEmail());
@@ -126,16 +153,15 @@ public class CartService {
                   OrderItemRequest req = new OrderItemRequest();
                   req.setProductId(item.getProduct().getId());
                   req.setQuantity(item.getQuantity());
+                  if (item.getVariant() != null) {
+                    req.setVariantId(item.getVariant().getId());
+                  }
                   return req;
                 })
             .collect(Collectors.toList());
 
     orderRequest.setItems(itemRequests);
-
-    // 2. Reuse existing OrderService (handles stock checks, order creation, stock deduction)
     Order order = orderService.createOrder(orderRequest, user);
-
-    // 3. Clear cart after successful order
     clearCart(user);
 
     return order;

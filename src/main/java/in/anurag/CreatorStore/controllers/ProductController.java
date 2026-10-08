@@ -1,8 +1,11 @@
 package in.anurag.CreatorStore.controllers;
 
+import in.anurag.CreatorStore.dto.VariantRequest;
 import in.anurag.CreatorStore.entities.Product;
+import in.anurag.CreatorStore.entities.ProductVariant;
 import in.anurag.CreatorStore.services.FileStorageService;
 import in.anurag.CreatorStore.services.ProductService;
+import in.anurag.CreatorStore.services.ProductVariantService;
 import in.anurag.CreatorStore.services.SearchService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -28,6 +31,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class ProductController {
 
   private final ProductService productService;
+  private final ProductVariantService productVariantService;
   private final FileStorageService fileStorageService;
   private final SearchService searchService;
 
@@ -47,10 +51,8 @@ public class ProductController {
       @RequestParam(defaultValue = "asc") String sortDir,
       @RequestParam(required = false) String category,
       @RequestParam(required = false) String search) {
-
-    Page<Product> products =
-        productService.getAllProducts(page, size, sortBy, sortDir, category, search);
-    return ResponseEntity.ok(products);
+    return ResponseEntity.ok(
+        productService.getAllProducts(page, size, sortBy, sortDir, category, search));
   }
 
   @Operation(summary = "Get product by ID", description = "Returns a single product by its ID.")
@@ -101,60 +103,65 @@ public class ProductController {
   @PostMapping("/{id}/image")
   public ResponseEntity<Product> uploadProductImage(
       @PathVariable Long id, @RequestParam("file") MultipartFile file) {
-
     String fileName = fileStorageService.storeFile(file);
     String imageUrl = "/uploads/" + fileName;
-    Product updatedProduct = productService.updateProductImage(id, imageUrl);
-
-    return ResponseEntity.ok(updatedProduct);
-  }
-
-  // ==========================================
-  // MEILISEARCH ENDPOINTS
-  // ==========================================
-
-  @Operation(
-      summary = "Search products (Full-Text)",
-      description = "Uses Meilisearch for typo-tolerant, relevance-ranked search.")
-  @GetMapping("/search")
-  public ResponseEntity<?> searchProducts(
-      @RequestParam String q, @RequestParam(defaultValue = "20") int limit) {
-
-    var results = searchService.searchProducts(q, limit);
-    if (results == null) {
-      return ResponseEntity.status(503).body("Search service is currently unavailable");
-    }
-    return ResponseEntity.ok(results);
+    return ResponseEntity.ok(productService.updateProductImage(id, imageUrl));
   }
 
   @Operation(
-      summary = "Advanced search with filters",
-      description = "Full-text search with optional category and price range filters.")
-  @GetMapping("/search/advanced")
-  public ResponseEntity<?> advancedSearch(
-      @RequestParam(required = false) String q,
-      @RequestParam(required = false) String category,
-      @RequestParam(required = false) Double minPrice,
-      @RequestParam(required = false) Double maxPrice,
-      @RequestParam(defaultValue = "20") int limit) {
-
-    var results = searchService.searchProductsWithFilters(q, category, minPrice, maxPrice, limit);
-    if (results == null) {
-      return ResponseEntity.status(503).body("Search service is currently unavailable");
-    }
-    return ResponseEntity.ok(results);
+      summary = "Get all variants for a product",
+      description = "Returns all variants (including inactive) for a specific product.")
+  @GetMapping("/{productId}/variants")
+  public ResponseEntity<List<ProductVariant>> getProductVariants(@PathVariable Long productId) {
+    return ResponseEntity.ok(productVariantService.getVariantsByProductId(productId));
   }
 
   @Operation(
-      summary = "Reindex all products",
-      description =
-          "Admin only: Rebuilds the entire Meilisearch index from the database (useful after bulk"
-              + " imports).")
+      summary = "Get active variants for a product",
+      description = "Returns only active variants for a specific product.")
+  @GetMapping("/{productId}/variants/active")
+  public ResponseEntity<List<ProductVariant>> getActiveProductVariants(
+      @PathVariable Long productId) {
+    return ResponseEntity.ok(productVariantService.getActiveVariantsByProductId(productId));
+  }
+
+  @Operation(
+      summary = "Create a product variant",
+      description = "Admin only: Adds a new variant (size/color) to a product.")
   @PreAuthorize("hasRole('ADMIN')")
-  @PostMapping("/reindex")
-  public ResponseEntity<String> reindexAllProducts() {
-    List<Product> allProducts = productService.getAllProducts();
-    searchService.reindexAllProducts(allProducts);
-    return ResponseEntity.ok("Reindexing started for " + allProducts.size() + " products");
+  @PostMapping("/{productId}/variants")
+  public ResponseEntity<ProductVariant> createVariant(
+      @PathVariable Long productId, @Valid @RequestBody VariantRequest request) {
+    return ResponseEntity.ok(productVariantService.createVariant(productId, request));
+  }
+
+  @Operation(
+      summary = "Update a product variant",
+      description = "Admin only: Updates an existing variant.")
+  @PreAuthorize("hasRole('ADMIN')")
+  @PutMapping("/variants/{variantId}")
+  public ResponseEntity<ProductVariant> updateVariant(
+      @PathVariable Long variantId, @Valid @RequestBody VariantRequest request) {
+    return ResponseEntity.ok(productVariantService.updateVariant(variantId, request));
+  }
+
+  @Operation(
+      summary = "Delete a product variant",
+      description = "Admin only: Permanently removes a variant.")
+  @PreAuthorize("hasRole('ADMIN')")
+  @DeleteMapping("/variants/{variantId}")
+  public ResponseEntity<Void> deleteVariant(@PathVariable Long variantId) {
+    productVariantService.deleteVariant(variantId);
+    return ResponseEntity.noContent().build();
+  }
+
+  @Operation(
+      summary = "Toggle variant active status",
+      description = "Admin only: Activates or deactivates a variant without deleting it.")
+  @PreAuthorize("hasRole('ADMIN')")
+  @PatchMapping("/variants/{variantId}/toggle")
+  public ResponseEntity<Void> toggleVariantActive(@PathVariable Long variantId) {
+    productVariantService.toggleVariantActive(variantId);
+    return ResponseEntity.ok().build();
   }
 }

@@ -31,4 +31,8 @@ public class OrderItem {
 
   @Column(name = "price_at_purchase", nullable = false)
   private BigDecimal priceAtPurchase;
+
+  @ManyToOne(fetch = FetchType.EAGER)
+  @JoinColumn(name = "variant_id")
+  private ProductVariant variant;
 }

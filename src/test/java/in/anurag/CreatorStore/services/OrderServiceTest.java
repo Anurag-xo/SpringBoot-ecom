@@ -14,6 +14,7 @@ import in.anurag.CreatorStore.entities.User;
 import in.anurag.CreatorStore.exceptions.ResourceNotFoundException;
 import in.anurag.CreatorStore.repositories.OrderRepository;
 import in.anurag.CreatorStore.repositories.ProductRepository;
+import in.anurag.CreatorStore.repositories.ProductVariantRepository;
 import in.anurag.CreatorStore.utils.TestDataUtil;
 import java.math.BigDecimal;
 import java.util.Arrays;
@@ -34,6 +35,10 @@ class OrderServiceTest {
 
   @Mock private ProductRepository productRepository;
 
+  @Mock private ProductVariantRepository variantRepository; // <-- ADDED THIS MOCK
+
+  @Mock private EmailService emailService; // <-- ADDED THIS MOCK
+
   @InjectMocks private OrderService orderService;
 
   private User testUser;
@@ -49,7 +54,6 @@ class OrderServiceTest {
   @Test
   @DisplayName("Should create order successfully")
   void createOrder_Success() {
-    // Arrange
     OrderItemRequest itemRequest = new OrderItemRequest();
     itemRequest.setProductId(1L);
     itemRequest.setQuantity(2);
@@ -64,23 +68,23 @@ class OrderServiceTest {
     when(orderRepository.save(any(Order.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
-    // Act
     Order result = orderService.createOrder(orderRequest, testUser);
 
-    // Assert
     assertThat(result).isNotNull();
     assertThat(result.getCustomerName()).isEqualTo("Test User");
     assertThat(result.getStatus()).isEqualTo(OrderStatus.PENDING);
     assertThat(result.getTotalPrice()).isEqualByComparingTo(BigDecimal.valueOf(100.00));
+
     verify(productRepository, times(1)).findById(1L);
     verify(productRepository, times(1)).save(any(Product.class));
     verify(orderRepository, times(1)).save(any(Order.class));
+    verify(emailService, times(1))
+        .sendOrderConfirmationEmail(any(User.class), any(Order.class)); // Verify email
   }
 
   @Test
   @DisplayName("Should throw exception when product not found")
   void createOrder_ProductNotFound() {
-    // Arrange
     OrderItemRequest itemRequest = new OrderItemRequest();
     itemRequest.setProductId(999L);
     itemRequest.setQuantity(1);
@@ -92,7 +96,6 @@ class OrderServiceTest {
 
     when(productRepository.findById(999L)).thenReturn(Optional.empty());
 
-    // Act & Assert
     assertThatThrownBy(() -> orderService.createOrder(orderRequest, testUser))
         .isInstanceOf(ResourceNotFoundException.class)
         .hasMessageContaining("Product not found with id: 999");
@@ -101,7 +104,6 @@ class OrderServiceTest {
   @Test
   @DisplayName("Should throw exception when insufficient stock")
   void createOrder_InsufficientStock() {
-    // Arrange
     Product lowStockProduct =
         TestDataUtil.createTestProduct(1L, "Low Stock", BigDecimal.valueOf(50.00), 5);
 
@@ -116,7 +118,6 @@ class OrderServiceTest {
 
     when(productRepository.findById(1L)).thenReturn(Optional.of(lowStockProduct));
 
-    // Act & Assert
     assertThatThrownBy(() -> orderService.createOrder(orderRequest, testUser))
         .isInstanceOf(RuntimeException.class)
         .hasMessageContaining("Not enough stock");
@@ -125,16 +126,13 @@ class OrderServiceTest {
   @Test
   @DisplayName("Should get orders by user")
   void getOrdersByUser_Success() {
-    // Arrange
     Order order1 = TestDataUtil.createTestOrder(1L, testUser, OrderStatus.PENDING);
     Order order2 = TestDataUtil.createTestOrder(2L, testUser, OrderStatus.CONFIRMED);
     when(orderRepository.findByUserOrderByCreatedAtDesc(testUser))
         .thenReturn(Arrays.asList(order1, order2));
 
-    // Act
     var result = orderService.getOrdersByUser(testUser);
 
-    // Assert
     assertThat(result).hasSize(2);
     verify(orderRepository, times(1)).findByUserOrderByCreatedAtDesc(testUser);
   }
@@ -142,15 +140,12 @@ class OrderServiceTest {
   @Test
   @DisplayName("Should update order status successfully")
   void updateOrderStatus_Success() {
-    // Arrange
     Order order = TestDataUtil.createTestOrder(1L, testUser, OrderStatus.PENDING);
     when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
     when(orderRepository.save(any(Order.class))).thenReturn(order);
 
-    // Act
     Order result = orderService.updateOrderStatus(1L, OrderStatus.SHIPPED);
 
-    // Assert
     assertThat(result.getStatus()).isEqualTo(OrderStatus.SHIPPED);
     verify(orderRepository, times(1)).findById(1L);
     verify(orderRepository, times(1)).save(order);

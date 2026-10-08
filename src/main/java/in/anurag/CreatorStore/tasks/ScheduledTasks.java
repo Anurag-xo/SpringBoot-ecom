@@ -29,7 +29,6 @@ public class ScheduledTasks {
   @Value("${admin.email:admin@creatorstore.com}")
   private String adminEmail;
 
-  // Runs daily at 2:00 AM (Change to fixedRate = 60000 for testing every 60 seconds)
   @Scheduled(cron = "0 0 2 * * ?")
   public void checkLowStockAndAlert() {
     log.info("🕒 Running scheduled task: Check Low Stock");
@@ -44,7 +43,6 @@ public class ScheduledTasks {
     }
   }
 
-  // Runs daily at 3:00 AM
   @Scheduled(cron = "0 0 3 * * ?")
   @Transactional
   public void cancelExpiredPendingOrders() {
