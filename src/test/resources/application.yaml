@@ -1,0 +1,17 @@
+spring:
+  jpa:
+    properties:
+      hibernate:
+        # Force H2 dialect for tests to prevent PostgreSQL "returning id" syntax errors
+        dialect: org.hibernate.dialect.H2Dialect
+
+  # Dummy mail properties to prevent JavaMailSender from failing during test context startup
+  mail:
+    host: localhost
+    port: 25
+    username: test
+    password: test
+
+  # Prevent Thymeleaf from failing if it can't find email templates in the test classpath
+  thymeleaf:
+    check-template-location: false
