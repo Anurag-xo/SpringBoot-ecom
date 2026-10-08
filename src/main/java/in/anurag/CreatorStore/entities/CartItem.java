@@ -34,4 +34,8 @@ public class CartItem {
   // Snapshot of price at the time of adding to cart
   @Column(nullable = false)
   private BigDecimal price;
+
+  @ManyToOne(fetch = FetchType.EAGER)
+  @JoinColumn(name = "variant_id")
+  private ProductVariant variant;
 }
