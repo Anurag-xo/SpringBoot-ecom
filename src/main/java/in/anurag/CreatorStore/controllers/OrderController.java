@@ -1,75 +1,68 @@
 package in.anurag.CreatorStore.controllers;
 
-import in.anurag.CreatorStore.dto.OrderRequest;
-import in.anurag.CreatorStore.dto.OrderStatusUpdateRequest;
+import in.anurag.CreatorStore.dto.AddToCartRequest;
+import in.anurag.CreatorStore.dto.UpdateCartItemRequest;
+import in.anurag.CreatorStore.entities.Cart;
 import in.anurag.CreatorStore.entities.Order;
 import in.anurag.CreatorStore.entities.User;
 import in.anurag.CreatorStore.repositories.UserRepository;
-import in.anurag.CreatorStore.services.OrderService;
+import in.anurag.CreatorStore.services.CartService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/orders")
+@RequestMapping("/api/v1/cart") // ✅ UPDATED: Added v1 versioning
 @RequiredArgsConstructor
-public class OrderController {
+@Tag(name = "Shopping Cart", description = "Shopping cart management endpoints")
+public class CartController {
 
-  private final OrderService orderService;
+  private final CartService cartService;
   private final UserRepository userRepository;
 
-  // 1. Create a new order (Authenticated users only)
-  @PostMapping
-  public ResponseEntity<Order> createOrder(@Valid @RequestBody OrderRequest orderRequest) {
-    User currentUser = getCurrentUser();
-    return ResponseEntity.ok(orderService.createOrder(orderRequest, currentUser));
-  }
-
-  // 2. Get current user's order history
-  @GetMapping("/my-orders")
-  public ResponseEntity<List<Order>> getMyOrders() {
-    User currentUser = getCurrentUser();
-    return ResponseEntity.ok(orderService.getOrdersByUser(currentUser));
-  }
-
-  // 3. Get a specific order by ID (User must own it)
-  @GetMapping("/{id}")
-  public ResponseEntity<Order> getOrderById(@PathVariable Long id) {
-    User currentUser = getCurrentUser();
-    return ResponseEntity.ok(orderService.getOrderById(id, currentUser));
-  }
-
-  // 4. ADMIN ONLY: Get all orders in the system
-  @PreAuthorize("hasRole('ADMIN')")
+  @Operation(summary = "Get current user's cart")
   @GetMapping
-  public ResponseEntity<List<Order>> getAllOrders() {
-    return ResponseEntity.ok(orderService.getAllOrders());
+  public ResponseEntity<Cart> getCart() {
+    return ResponseEntity.ok(cartService.getCart(getCurrentUser()));
   }
 
-  // 5. ADMIN ONLY: Update the status of an order (e.g., PENDING -> SHIPPED)
-  @PreAuthorize("hasRole('ADMIN')")
-  @PutMapping("/{id}/status")
-  public ResponseEntity<Order> updateOrderStatus(
-      @PathVariable Long id, @Valid @RequestBody OrderStatusUpdateRequest request) {
-
-    return ResponseEntity.ok(orderService.updateOrderStatus(id, request.getStatus()));
+  @Operation(summary = "Add item to cart")
+  @PostMapping("/items")
+  public ResponseEntity<Cart> addToCart(@Valid @RequestBody AddToCartRequest request) {
+    return ResponseEntity.ok(cartService.addToCart(request, getCurrentUser()));
   }
 
-  // 6. USER: Cancel their own order (Service handles the PENDING check and stock restoration)
-  @PutMapping("/{id}/cancel")
-  public ResponseEntity<Order> cancelOrder(@PathVariable Long id) {
-    User currentUser = getCurrentUser();
-    return ResponseEntity.ok(orderService.cancelOrder(id, currentUser));
+  @Operation(summary = "Update cart item quantity")
+  @PutMapping("/items/{itemId}")
+  public ResponseEntity<Cart> updateCartItem(
+      @PathVariable Long itemId, @Valid @RequestBody UpdateCartItemRequest request) {
+    return ResponseEntity.ok(cartService.updateCartItem(itemId, request, getCurrentUser()));
   }
 
-  // ==========================================
-  // Helper method to extract the logged-in user
-  // ==========================================
+  @Operation(summary = "Remove item from cart")
+  @DeleteMapping("/items/{itemId}")
+  public ResponseEntity<Cart> removeCartItem(@PathVariable Long itemId) {
+    return ResponseEntity.ok(cartService.removeCartItem(itemId, getCurrentUser()));
+  }
+
+  @Operation(summary = "Clear entire cart")
+  @DeleteMapping
+  public ResponseEntity<Void> clearCart() {
+    cartService.clearCart(getCurrentUser());
+    return ResponseEntity.noContent().build();
+  }
+
+  @Operation(summary = "Checkout - Convert cart to order")
+  @PostMapping("/checkout")
+  public ResponseEntity<Order> checkout() {
+    return ResponseEntity.ok(cartService.checkout(getCurrentUser()));
+  }
+
   private User getCurrentUser() {
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
     String username = authentication.getName();

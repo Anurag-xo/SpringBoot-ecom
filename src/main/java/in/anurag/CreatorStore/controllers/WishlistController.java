@@ -4,9 +4,9 @@ import in.anurag.CreatorStore.entities.User;
 import in.anurag.CreatorStore.entities.Wishlist;
 import in.anurag.CreatorStore.repositories.UserRepository;
 import in.anurag.CreatorStore.services.WishlistService;
-import java.util.HashMap;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -14,48 +14,33 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/wishlist")
+@RequestMapping("/api/v1/wishlists") // ✅ UPDATED: Added v1 versioning
 @RequiredArgsConstructor
+@Tag(name = "Wishlists", description = "Wishlist management endpoints")
 public class WishlistController {
 
   private final WishlistService wishlistService;
   private final UserRepository userRepository;
 
-  // 1. Add product to wishlist
-  @PostMapping("/{productId}")
-  public ResponseEntity<Wishlist> addToWishlist(@PathVariable Long productId) {
-    User currentUser = getCurrentUser();
-    return ResponseEntity.ok(wishlistService.addToWishlist(productId, currentUser));
+  @Operation(summary = "Get current user's wishlist")
+  @GetMapping
+  public ResponseEntity<List<Wishlist>> getMyWishlist() {
+    return ResponseEntity.ok(wishlistService.getWishlistByUser(getCurrentUser()));
   }
 
-  // 2. Remove product from wishlist
-  @DeleteMapping("/{productId}")
+  @Operation(summary = "Add product to wishlist")
+  @PostMapping("/products/{productId}")
+  public ResponseEntity<Wishlist> addToWishlist(@PathVariable Long productId) {
+    return ResponseEntity.ok(wishlistService.addToWishlist(productId, getCurrentUser()));
+  }
+
+  @Operation(summary = "Remove product from wishlist")
+  @DeleteMapping("/products/{productId}")
   public ResponseEntity<Void> removeFromWishlist(@PathVariable Long productId) {
-    User currentUser = getCurrentUser();
-    wishlistService.removeFromWishlist(productId, currentUser);
+    wishlistService.removeFromWishlist(productId, getCurrentUser());
     return ResponseEntity.noContent().build();
   }
 
-  // 3. Get user's wishlist
-  @GetMapping
-  public ResponseEntity<List<Wishlist>> getUserWishlist() {
-    User currentUser = getCurrentUser();
-    return ResponseEntity.ok(wishlistService.getUserWishlist(currentUser));
-  }
-
-  // 4. Check if product is in wishlist
-  @GetMapping("/{productId}/check")
-  public ResponseEntity<Map<String, Boolean>> isInWishlist(@PathVariable Long productId) {
-    User currentUser = getCurrentUser();
-    boolean isInWishlist = wishlistService.isInWishlist(productId, currentUser);
-
-    Map<String, Boolean> response = new HashMap<>();
-    response.put("inWishlist", isInWishlist);
-
-    return ResponseEntity.ok(response);
-  }
-
-  // Helper method to extract the logged-in user
   private User getCurrentUser() {
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
     String username = authentication.getName();
