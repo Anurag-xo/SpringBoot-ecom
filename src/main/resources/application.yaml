@@ -38,15 +38,23 @@ spring:
           starttls:
             enable: true
 
-# NEW: Meilisearch Configuration
+# NEW: API Versioning Configuration
+api:
+  version:
+    current: v1
+    deprecated: [] # Add old versions here when they become deprecated (e.g., [v0])
+
+# Meilisearch Configuration
 meilisearch:
   url: ${MEILISEARCH_URL:http://localhost:7700}
   key: ${MEILISEARCH_KEY:your_master_key_here}
 
+# JWT Configuration
 jwt:
   secret: ${JWT_SECRET:YourSuperSecretKeyForJWTTokenGenerationMustBeAtLeast256BitsLong123456}
   expiration: ${JWT_EXPIRATION:86400000}
 
+# Admin user initialization
 admin:
   username: ${ADMIN_USERNAME:admin}
   email: ${ADMIN_EMAIL:admin@creatorstore.com}
