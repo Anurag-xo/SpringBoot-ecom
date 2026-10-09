@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
-@RequestMapping("/api/products")
+@RequestMapping("/api/v1/products") // ✅ UPDATED: Added v1 versioning
 @RequiredArgsConstructor
 @Tag(
     name = "Products",
@@ -108,6 +108,10 @@ public class ProductController {
     return ResponseEntity.ok(productService.updateProductImage(id, imageUrl));
   }
 
+  // ==========================================
+  // PRODUCT VARIANT ENDPOINTS
+  // ==========================================
+
   @Operation(
       summary = "Get all variants for a product",
       description = "Returns all variants (including inactive) for a specific product.")
@@ -163,5 +167,50 @@ public class ProductController {
   public ResponseEntity<Void> toggleVariantActive(@PathVariable Long variantId) {
     productVariantService.toggleVariantActive(variantId);
     return ResponseEntity.ok().build();
+  }
+
+  // ==========================================
+  // MEILISEARCH ENDPOINTS
+  // ==========================================
+
+  @Operation(
+      summary = "Search products (Full-Text)",
+      description = "Uses Meilisearch for typo-tolerant, relevance-ranked search.")
+  @GetMapping("/search")
+  public ResponseEntity<?> searchProducts(
+      @RequestParam String q, @RequestParam(defaultValue = "20") int limit) {
+    var results = searchService.searchProducts(q, limit);
+    if (results == null) {
+      return ResponseEntity.status(503).body("Search service is currently unavailable");
+    }
+    return ResponseEntity.ok(results);
+  }
+
+  @Operation(
+      summary = "Advanced search with filters",
+      description = "Full-text search with optional category and price range filters.")
+  @GetMapping("/search/advanced")
+  public ResponseEntity<?> advancedSearch(
+      @RequestParam(required = false) String q,
+      @RequestParam(required = false) String category,
+      @RequestParam(required = false) Double minPrice,
+      @RequestParam(required = false) Double maxPrice,
+      @RequestParam(defaultValue = "20") int limit) {
+    var results = searchService.searchProductsWithFilters(q, category, minPrice, maxPrice, limit);
+    if (results == null) {
+      return ResponseEntity.status(503).body("Search service is currently unavailable");
+    }
+    return ResponseEntity.ok(results);
+  }
+
+  @Operation(
+      summary = "Reindex all products",
+      description = "Admin only: Rebuilds the entire Meilisearch index from the database.")
+  @PreAuthorize("hasRole('ADMIN')")
+  @PostMapping("/reindex")
+  public ResponseEntity<String> reindexAllProducts() {
+    List<Product> allProducts = productService.getAllProducts();
+    searchService.reindexAllProducts(allProducts);
+    return ResponseEntity.ok("Reindexing started for " + allProducts.size() + " products");
   }
 }
