@@ -13,9 +13,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/admin/analytics")
+@RequestMapping("/api/v1/admin/analytics") // ✅ UPDATED: Added v1 versioning
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')") // Locks the entire controller to Admins only
+@PreAuthorize("hasRole('ADMIN')")
 @Tag(
     name = "Admin Analytics",
     description = "Business intelligence and reporting endpoints for administrators")
