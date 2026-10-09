@@ -38,9 +38,8 @@ class ProductControllerIntegrationTest {
   }
 
   @Test
-  @DisplayName("GET /api/products - Should return paginated products")
+  @DisplayName("GET /api/v1/products - Should return paginated products")
   void getAllProducts_Success() throws Exception {
-    // Arrange
     Product product1 =
         TestDataUtil.createTestProduct(null, "Product 1", BigDecimal.valueOf(10.00), 50);
     Product product2 =
@@ -48,9 +47,11 @@ class ProductControllerIntegrationTest {
     productRepository.save(product1);
     productRepository.save(product2);
 
-    // Act & Assert
     mockMvc
-        .perform(get("/api/products").param("page", "0").param("size", "10"))
+        .perform(
+            get("/api/v1/products") // ✅ UPDATED PATH
+                .param("page", "0")
+                .param("size", "10"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content", hasSize(2)))
         .andExpect(jsonPath("$.content[0].name").value("Product 1"))
@@ -58,39 +59,37 @@ class ProductControllerIntegrationTest {
   }
 
   @Test
-  @DisplayName("GET /api/products/{id} - Should return product by ID")
+  @DisplayName("GET /api/v1/products/{id} - Should return product by ID")
   void getProductById_Success() throws Exception {
-    // Arrange
     Product product =
         TestDataUtil.createTestProduct(null, "Test Product", BigDecimal.valueOf(99.99), 50);
     Product savedProduct = productRepository.save(product);
 
-    // Act & Assert
     mockMvc
-        .perform(get("/api/products/" + savedProduct.getId()))
+        .perform(get("/api/v1/products/" + savedProduct.getId())) // ✅ UPDATED PATH
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.name").value("Test Product"))
         .andExpect(jsonPath("$.price").value(99.99));
   }
 
   @Test
-  @DisplayName("GET /api/products/{id} - Should return 404 when product not found")
+  @DisplayName("GET /api/v1/products/{id} - Should return 404 when product not found")
   void getProductById_NotFound() throws Exception {
-    mockMvc.perform(get("/api/products/999")).andExpect(status().isNotFound());
+    mockMvc
+        .perform(get("/api/v1/products/999")) // ✅ UPDATED PATH
+        .andExpect(status().isNotFound());
   }
 
   @Test
   @WithMockUser(roles = "ADMIN")
-  @DisplayName("POST /api/products - Admin should create product")
+  @DisplayName("POST /api/v1/products - Admin should create product")
   void createProduct_Admin_Success() throws Exception {
-    // Arrange
     Product product =
         TestDataUtil.createTestProduct(null, "New Product", BigDecimal.valueOf(49.99), 100);
 
-    // Act & Assert
     mockMvc
         .perform(
-            post("/api/products")
+            post("/api/v1/products") // ✅ UPDATED PATH
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(product)))
         .andExpect(status().isOk())
@@ -100,25 +99,22 @@ class ProductControllerIntegrationTest {
 
   @Test
   @WithMockUser(roles = "USER")
-  @DisplayName("POST /api/products - Regular user should NOT create product")
+  @DisplayName("POST /api/v1/products - Regular user should NOT create product")
   void createProduct_User_Forbidden() throws Exception {
-    // Arrange
     Product product =
         TestDataUtil.createTestProduct(null, "New Product", BigDecimal.valueOf(49.99), 100);
 
-    // Act & Assert
     mockMvc
         .perform(
-            post("/api/products")
+            post("/api/v1/products") // ✅ UPDATED PATH
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(product)))
         .andExpect(status().isForbidden());
   }
 
   @Test
-  @DisplayName("GET /api/products - Should filter by category")
+  @DisplayName("GET /api/v1/products - Should filter by category")
   void getAllProducts_FilterByCategory() throws Exception {
-    // Arrange
     Product product1 =
         TestDataUtil.createTestProduct(null, "Product 1", BigDecimal.valueOf(10.00), 50);
     product1.setCategory("Merch");
@@ -128,9 +124,10 @@ class ProductControllerIntegrationTest {
     productRepository.save(product1);
     productRepository.save(product2);
 
-    // Act & Assert
     mockMvc
-        .perform(get("/api/products").param("category", "Merch"))
+        .perform(
+            get("/api/v1/products") // ✅ UPDATED PATH
+                .param("category", "Merch"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content", hasSize(1)))
         .andExpect(jsonPath("$.content[0].category").value("Merch"));
