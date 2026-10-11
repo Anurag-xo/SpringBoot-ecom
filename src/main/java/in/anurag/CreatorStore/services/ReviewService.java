@@ -19,39 +19,41 @@ public class ReviewService {
   private final ReviewRepository reviewRepository;
   private final ProductRepository productRepository;
 
+  public List<Review> getReviewsByProductId(Long productId) {
+    return reviewRepository.findByProductId(productId);
+  }
+
   @Transactional
-  public Review addReview(Long productId, ReviewRequest request, User user) {
+  public Review createReview(Long productId, ReviewRequest request, User user) {
     Product product =
         productRepository
             .findById(productId)
             .orElseThrow(
                 () -> new ResourceNotFoundException("Product not found with id: " + productId));
 
-    // Business Logic: Prevent duplicate reviews
-    if (reviewRepository.findByProductIdAndUserId(productId, user.getId()).isPresent()) {
-      throw new RuntimeException("You have already reviewed this product");
-    }
-
     Review review =
         Review.builder()
-            .rating(request.getRating())
-            .comment(request.getComment())
             .product(product)
             .user(user)
+            .rating(request.getRating())
+            .comment(request.getComment())
             .build();
 
     return reviewRepository.save(review);
   }
 
-  public List<Review> getReviewsByProduct(Long productId) {
-    if (!productRepository.existsById(productId)) {
-      throw new ResourceNotFoundException("Product not found with id: " + productId);
-    }
-    return reviewRepository.findByProductIdOrderByCreatedAtDesc(productId);
-  }
+  @Transactional
+  public void deleteReview(Long reviewId, User user) {
+    Review review =
+        reviewRepository
+            .findById(reviewId)
+            .orElseThrow(
+                () -> new ResourceNotFoundException("Review not found with id: " + reviewId));
 
-  public Double getAverageRating(Long productId) {
-    Double avg = reviewRepository.getAverageRatingByProductId(productId);
-    return avg != null ? Math.round(avg * 10.0) / 10.0 : 0.0; // Rounds to 1 decimal place
+    if (!review.getUser().getId().equals(user.getId())) {
+      throw new RuntimeException("You do not have permission to delete this review");
+    }
+
+    reviewRepository.delete(review);
   }
 }
