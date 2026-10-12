@@ -1,58 +1,69 @@
 package in.anurag.CreatorStore.services;
 
-import in.anurag.CreatorStore.entities.CustomRevisionEntity;
-import in.anurag.CreatorStore.entities.Product;
-import jakarta.persistence.EntityManager;
-import java.io.Serializable;
-import java.util.*;
+import in.anurag.CreatorStore.dto.AuthResponse;
+import in.anurag.CreatorStore.dto.LoginRequest;
+import in.anurag.CreatorStore.dto.RegisterRequest;
+import in.anurag.CreatorStore.entities.User;
+import in.anurag.CreatorStore.exceptions.ResourceNotFoundException;
+import in.anurag.CreatorStore.repositories.UserRepository;
+import in.anurag.CreatorStore.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
-import org.hibernate.envers.AuditReader;
-import org.hibernate.envers.AuditReaderFactory;
-import org.hibernate.envers.RevisionType;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
+import java.util.Set;
+
 @Service
 @RequiredArgsConstructor
-public class AuditService {
+public class AuthService {
 
-  private final EntityManager entityManager;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
+    private final AuthenticationManager authenticationManager;
 
-  @Transactional(readOnly = true)
-  public List<Map<String, Object>> getProductHistory(Long productId) {
-    AuditReader auditReader = AuditReaderFactory.get(entityManager);
+    @Transactional
+    public AuthResponse register(RegisterRequest request) {
+        if (userRepository.existsByUsername(request.getUsername())) {
+            throw new RuntimeException("Username already exists");
+        }
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new RuntimeException("Email already exists");
+        }
 
-    // Get all revision numbers for this specific product ID
-    List<Number> revisions = auditReader.getRevisions(Product.class, productId);
+        Set<String> roles = new HashSet<>();
+        roles.add("ROLE_USER");
 
-    List<Map<String, Object>> history = new ArrayList<>();
+        User user = User.builder()
+                .username(request.getUsername())
+                .email(request.getEmail())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .roles(roles)
+                .enabled(true)
+                .build();
 
-    for (Number revision : revisions) {
-      // Fetch the state of the product at this specific revision
-      Product productAtRevision = auditReader.find(Product.class, productId, revision);
+        User savedUser = userRepository.save(user);
+        String token = jwtUtil.generateToken(savedUser.getUsername());
 
-      // Fetch the metadata about the revision (who made it and when)
-      CustomRevisionEntity revisionEntity =
-          auditReader.findRevision(CustomRevisionEntity.class, revision);
-
-      // Get the type of change (ADD, MOD, DEL). Cast to Serializable for Hibernate 6 compatibility
-      RevisionType revisionType =
-          auditReader.getRevisionType(Product.class, (Serializable) productId, revision);
-
-      Map<String, Object> entry = new HashMap<>();
-      entry.put("revisionId", revisionEntity.getId());
-      entry.put("timestamp", revisionEntity.getRevisionDate());
-      entry.put("username", revisionEntity.getUsername());
-      entry.put("changeType", revisionType.name()); // "ADD", "MOD", or "DEL"
-      entry.put("data", productAtRevision); // The actual state of the product at this point in time
-
-      history.add(entry);
+        return new AuthResponse(token, savedUser.getUsername(), savedUser.getEmail());
     }
 
-    // Sort by revision ID descending (newest changes first)
-    history.sort(
-        (a, b) -> Integer.compare((Integer) b.get("revisionId"), (Integer) a.get("revisionId")));
+    public AuthResponse login(LoginRequest request) {
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
+        );
+        SecurityContextHolder.getContext().setAuthentication(authentication);
 
-    return history;
-  }
+        User user = userRepository.findByUsername(request.getUsername())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        String token = jwtUtil.generateToken(user.getUsername());
+        return new AuthResponse(token, user.getUsername(), user.getEmail());
+    }
 }
