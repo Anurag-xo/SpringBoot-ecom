@@ -123,6 +123,10 @@
             <artifactId>meilisearch-java</artifactId>
             <version>0.14.2</version>
         </dependency>
+        <dependency>
+            <groupId>org.hibernate.orm</groupId>
+            <artifactId>hibernate-envers</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
