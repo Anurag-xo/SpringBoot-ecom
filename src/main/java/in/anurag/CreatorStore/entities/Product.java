@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.*;
+import org.hibernate.envers.Audited;
 
 @Entity
 @Table(name = "products")
@@ -13,6 +14,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Audited
 public class Product {
 
   @Id
