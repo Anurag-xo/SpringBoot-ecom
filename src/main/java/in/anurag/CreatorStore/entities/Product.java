@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.*;
 import org.hibernate.envers.Audited;
+import org.hibernate.envers.NotAudited;
 
 @Entity
 @Table(name = "products")
@@ -30,24 +31,23 @@ public class Product {
   private String category;
 
   @Column(nullable = false, precision = 10, scale = 2)
-  private BigDecimal price; // Base price (can be overridden by variants)
+  private BigDecimal price;
 
   @Column(nullable = false)
-  private Integer stockQuantity; // Total stock across all variants
+  private Integer stockQuantity;
 
   private String imageUrl;
 
   @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
   @Builder.Default
+  @NotAudited // <-- Tells Envers to ignore this relationship
   private List<ProductVariant> variants = new ArrayList<>();
 
-  // Helper method to add a variant
   public void addVariant(ProductVariant variant) {
     variants.add(variant);
     variant.setProduct(this);
   }
 
-  // Helper method to remove a variant
   public void removeVariant(ProductVariant variant) {
     variants.remove(variant);
     variant.setProduct(null);
