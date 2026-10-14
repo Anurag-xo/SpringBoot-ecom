@@ -28,4 +28,6 @@ public class OrderRequest {
   @Valid
   @NotEmpty(message = "Order must contain at least one item")
   private List<OrderItemRequest> items;
+
+  private String couponCode;
 }
