@@ -10,11 +10,20 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      # CRITICAL: Changed from 'update' to 'validate'.
+      # Hibernate will now only check if the Flyway schema matches the entities.
+      # It will NEVER auto-create or auto-drop tables.
+      ddl-auto: validate
     show-sql: false
     properties:
       hibernate:
         format_sql: true
+
+  # NEW: Flyway Database Migration Configuration
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true # Safely handles existing databases
 
   h2:
     console:
@@ -38,11 +47,11 @@ spring:
           starttls:
             enable: true
 
-# NEW: API Versioning Configuration
+# API Versioning Configuration
 api:
   version:
     current: v1
-    deprecated: [] # Add old versions here when they become deprecated (e.g., [v0])
+    deprecated: []
 
 # Meilisearch Configuration
 meilisearch:
