@@ -1,40 +1,26 @@
 spring:
   application:
     name: CreatorStore
-
   datasource:
     url: ${DATABASE_URL:jdbc:h2:mem:creatorstore}
     username: ${DATABASE_USERNAME:sa}
     password: ${DATABASE_PASSWORD:}
     driver-class-name: ${DATABASE_DRIVER:org.h2.Driver}
-
   jpa:
     hibernate:
-      # CRITICAL: Changed from 'update' to 'validate'.
-      # Hibernate will now only check if the Flyway schema matches the entities.
-      # It will NEVER auto-create or auto-drop tables.
-      ddl-auto: validate
+      ddl-auto: update
     show-sql: false
     properties:
       hibernate:
         format_sql: true
-
-  # NEW: Flyway Database Migration Configuration
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-    baseline-on-migrate: true # Safely handles existing databases
-
   h2:
     console:
       enabled: true
       path: /h2-console
-
   servlet:
     multipart:
       max-file-size: 5MB
       max-request-size: 5MB
-
   mail:
     host: ${MAIL_HOST:smtp.mailtrap.io}
     port: ${MAIL_PORT:587}
@@ -46,6 +32,10 @@ spring:
           auth: true
           starttls:
             enable: true
+
+# NEW: Frontend URL for password reset links
+app:
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
 
 # API Versioning Configuration
 api:

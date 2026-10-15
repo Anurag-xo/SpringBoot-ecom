@@ -15,6 +15,7 @@ import lombok.*;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class Order {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,6 +34,13 @@ public class Order {
   @Column(name = "total_price", nullable = false)
   private BigDecimal totalPrice;
 
+  @Column(name = "coupon_code")
+  private String couponCode;
+
+  @Column(name = "discount_amount")
+  @Builder.Default
+  private BigDecimal discountAmount = BigDecimal.ZERO;
+
   @JsonManagedReference
   @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<OrderItem> orderItems;
@@ -45,12 +53,15 @@ public class Order {
 
   @Column(name = "created_at")
   private LocalDateTime createdAt;
-  
+
   @PrePersist
   public void prePersist() {
     this.createdAt = LocalDateTime.now();
     if (this.status == null) {
       this.status = OrderStatus.PENDING;
+    }
+    if (this.discountAmount == null) {
+      this.discountAmount = BigDecimal.ZERO;
     }
   }
 }
