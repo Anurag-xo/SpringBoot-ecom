@@ -19,7 +19,6 @@ import org.thymeleaf.context.Context;
 @RequiredArgsConstructor
 @Slf4j
 public class EmailService {
-
   private final JavaMailSender mailSender;
   private final TemplateEngine templateEngine;
 
@@ -41,29 +40,52 @@ public class EmailService {
         user.getEmail(), "Order Cancelled - CreatorStore", "email/order-cancellation", user, order);
   }
 
+  @Async
+  public void sendPasswordResetEmail(User user, String resetLink) {
+    log.info("Preparing to send password reset email to: {}", user.getEmail());
+    try {
+      MimeMessage message = mailSender.createMimeMessage();
+      MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+      helper.setTo(user.getEmail());
+      helper.setSubject("Password Reset Request - CreatorStore");
+      helper.setFrom("noreply@creatorstore.com");
+
+      Context context = new Context();
+      context.setVariable("user", user);
+      context.setVariable("resetLink", resetLink);
+
+      String htmlContent = templateEngine.process("email/password-reset", context);
+      helper.setText(htmlContent, true);
+
+      mailSender.send(message);
+      log.info("✅ Password reset email sent successfully to: {}", user.getEmail());
+    } catch (MessagingException e) {
+      log.error(
+          "❌ Failed to send password reset email to: {}. Error: {}",
+          user.getEmail(),
+          e.getMessage());
+    }
+  }
+
   private void sendEmail(String to, String subject, String templateName, User user, Order order) {
     try {
       MimeMessage message = mailSender.createMimeMessage();
       MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-
       helper.setTo(to);
       helper.setSubject(subject);
-      helper.setFrom("noreply@creatorstore.com"); // Use your verified sender email
+      helper.setFrom("noreply@creatorstore.com");
 
-      // Process Thymeleaf template
       Context context = new Context();
       context.setVariable("user", user);
       context.setVariable("order", order);
+
       String htmlContent = templateEngine.process(templateName, context);
+      helper.setText(htmlContent, true);
 
-      helper.setText(htmlContent, true); // true = isHtml
       mailSender.send(message);
-
       log.info("✅ Email sent successfully to: {}", to);
     } catch (MessagingException e) {
       log.error("❌ Failed to send email to: {}. Error: {}", to, e.getMessage());
-      // Note: We don't throw the exception here to prevent it from crashing the main thread,
-      // but in production, you might want to log this to a monitoring system (e.g., Sentry).
     }
   }
 
@@ -73,18 +95,17 @@ public class EmailService {
     try {
       MimeMessage message = mailSender.createMimeMessage();
       MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-
       helper.setTo(adminEmail);
       helper.setSubject("⚠️ Low Stock Alert - CreatorStore");
       helper.setFrom("noreply@creatorstore.com");
 
       Context context = new Context();
       context.setVariable("products", lowStockProducts);
+
       String htmlContent = templateEngine.process("email/low-stock-alert", context);
-
       helper.setText(htmlContent, true);
-      mailSender.send(message);
 
+      mailSender.send(message);
       log.info("✅ Low stock alert sent successfully to: {}", adminEmail);
     } catch (MessagingException e) {
       log.error("❌ Failed to send low stock alert to: {}. Error: {}", adminEmail, e.getMessage());
