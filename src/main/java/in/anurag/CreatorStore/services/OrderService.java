@@ -22,7 +22,6 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class OrderService {
-
   private final OrderRepository orderRepository;
   private final ProductRepository productRepository;
   private final ProductVariantRepository variantRepository;
@@ -57,7 +56,6 @@ public class OrderService {
                 .findById(itemRequest.getVariantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Variant not found"));
         price = variant.getPrice();
-
         if (variant.getStockQuantity() < itemRequest.getQuantity()) {
           throw new RuntimeException("Not enough stock for variant: " + variant.getSku());
         }
@@ -79,17 +77,14 @@ public class OrderService {
               .quantity(itemRequest.getQuantity())
               .priceAtPurchase(price)
               .build();
-
       orderItems.add(orderItem);
       totalPrice = totalPrice.add(price.multiply(BigDecimal.valueOf(itemRequest.getQuantity())));
     }
 
     order.setTotalPrice(totalPrice);
     order.setOrderItems(orderItems);
-
     Order savedOrder = orderRepository.save(order);
     emailService.sendOrderConfirmationEmail(user, savedOrder);
-
     return savedOrder;
   }
 
@@ -106,7 +101,6 @@ public class OrderService {
         orderRepository
             .findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + id));
-
     if (!order.getUser().getId().equals(user.getId())) {
       throw new RuntimeException("You don't have permission to view this order");
     }
@@ -137,7 +131,6 @@ public class OrderService {
             .findById(orderId)
             .orElseThrow(
                 () -> new ResourceNotFoundException("Order not found with id: " + orderId));
-
     if (!order.getUser().getId().equals(currentUser.getId())) {
       throw new RuntimeException("You do not have permission to cancel this order");
     }
@@ -145,14 +138,12 @@ public class OrderService {
       throw new RuntimeException(
           "Only PENDING orders can be cancelled. Current status: " + order.getStatus());
     }
-
     order.setStatus(OrderStatus.CANCELLED);
     for (OrderItem item : order.getOrderItems()) {
       Product product = item.getProduct();
       product.setStockQuantity(product.getStockQuantity() + item.getQuantity());
       productRepository.save(product);
     }
-
     Order cancelledOrder = orderRepository.save(order);
     emailService.sendOrderCancellationEmail(currentUser, cancelledOrder);
     return cancelledOrder;
@@ -167,5 +158,14 @@ public class OrderService {
       productRepository.save(product);
     }
     return orderRepository.save(order);
+  }
+
+  // ✅ NEW: Soft delete method for Admins
+  @Transactional
+  public void deleteOrder(Long orderId) {
+    orderRepository
+        .findById(orderId)
+        .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + orderId));
+    orderRepository.softDeleteById(orderId);
   }
 }
