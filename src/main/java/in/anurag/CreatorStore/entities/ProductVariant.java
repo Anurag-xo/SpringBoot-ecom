@@ -2,8 +2,9 @@ package in.anurag.CreatorStore.entities;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import lombok.*;
-import lombok.Builder;
+import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(
@@ -14,6 +15,7 @@ import lombok.Builder;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@SQLRestriction("deleted_at IS NULL") // ✅ NEW
 public class ProductVariant {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -45,4 +47,8 @@ public class ProductVariant {
   @Column(nullable = false)
   @Builder.Default
   private Boolean active = true;
+
+  // ✅ NEW: Soft delete timestamp
+  @Column(name = "deleted_at")
+  private LocalDateTime deletedAt;
 }
