@@ -15,14 +15,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class ProductService {
-
   private final ProductRepository productRepository;
   private final SearchService searchService;
 
   @Transactional
   public Product createProduct(Product product) {
     Product savedProduct = productRepository.save(product);
-    // Sync to Meilisearch asynchronously
     searchService.indexProduct(savedProduct);
     return savedProduct;
   }
@@ -33,15 +31,12 @@ public class ProductService {
         productRepository
             .findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
-
     existingProduct.setName(productDetails.getName());
     existingProduct.setDescription(productDetails.getDescription());
     existingProduct.setCategory(productDetails.getCategory());
     existingProduct.setPrice(productDetails.getPrice());
     existingProduct.setStockQuantity(productDetails.getStockQuantity());
-
     Product savedProduct = productRepository.save(existingProduct);
-    // Sync updated data to Meilisearch asynchronously
     searchService.indexProduct(savedProduct);
     return savedProduct;
   }
@@ -58,8 +53,13 @@ public class ProductService {
 
   @Transactional
   public void deleteProduct(Long id) {
-    productRepository.deleteById(id);
-    // Remove from Meilisearch asynchronously
+    // ✅ UPDATED: Verify it exists first (findById respects @SQLRestriction)
+    productRepository
+        .findById(id)
+        .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
+
+    // ✅ UPDATED: Soft delete instead of hard delete
+    productRepository.softDeleteById(id);
     searchService.deleteProductFromIndex(id);
   }
 
@@ -69,28 +69,20 @@ public class ProductService {
         productRepository
             .findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
-
     product.setImageUrl(imageUrl);
     Product savedProduct = productRepository.save(product);
-    // Sync updated image URL to Meilisearch asynchronously
     searchService.indexProduct(savedProduct);
     return savedProduct;
   }
 
-  // Paginated, sorted, and filtered product retrieval
   public Page<Product> getAllProducts(
       int page, int size, String sortBy, String sortDir, String category, String search) {
-
-    // 1. Determine sort direction
     Sort sort =
         sortDir.equalsIgnoreCase("asc")
             ? Sort.by(sortBy).ascending()
             : Sort.by(sortBy).descending();
-
-    // 2. Create Pageable object
     Pageable pageable = PageRequest.of(page, size, sort);
 
-    // 3. Apply filters dynamically
     boolean hasCategory = category != null && !category.trim().isEmpty();
     boolean hasSearch = search != null && !search.trim().isEmpty();
 
@@ -102,7 +94,6 @@ public class ProductService {
     } else if (hasSearch) {
       return productRepository.findByNameContainingIgnoreCase(search, pageable);
     } else {
-      // No filters applied, return all products paginated
       return productRepository.findAll(pageable);
     }
   }
