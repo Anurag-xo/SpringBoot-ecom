@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import lombok.*;
+import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(
@@ -15,14 +16,14 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@SQLRestriction("deleted_at IS NULL") // ✅ NEW
 public class Review {
-
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
   @Column(nullable = false)
-  private Integer rating; // 1 to 5
+  private Integer rating;
 
   @Column(length = 1000)
   private String comment;
@@ -32,20 +33,23 @@ public class Review {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "user_id", nullable = false)
-  @JsonIgnore // Prevents serializing the entire User object
+  @JsonIgnore
   private User user;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "product_id", nullable = false)
-  @JsonIgnore // Prevents serializing the entire Product object
+  @JsonIgnore
   private Product product;
+
+  // ✅ NEW: Soft delete timestamp
+  @Column(name = "deleted_at")
+  private LocalDateTime deletedAt;
 
   @PrePersist
   public void prePersist() {
     this.createdAt = LocalDateTime.now();
   }
 
-  // Expose only the username to the frontend to keep JSON clean
   @JsonProperty("username")
   public String getUsername() {
     return user != null ? user.getUsername() : "Unknown";

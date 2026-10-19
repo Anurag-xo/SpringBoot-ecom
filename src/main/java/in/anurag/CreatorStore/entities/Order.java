@@ -3,11 +3,11 @@ package in.anurag.CreatorStore.entities;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
-import jakarta.persistence.Enumerated;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.*;
+import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(name = "orders")
@@ -16,6 +16,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@SQLRestriction("deleted_at IS NULL") // ✅ NEW
 public class Order {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -45,7 +46,6 @@ public class Order {
   @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<OrderItem> orderItems;
 
-  // Link to the user who place this order
   @JsonBackReference
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "user_id", nullable = false)
@@ -53,6 +53,10 @@ public class Order {
 
   @Column(name = "created_at")
   private LocalDateTime createdAt;
+
+  // ✅ NEW: Soft delete timestamp
+  @Column(name = "deleted_at")
+  private LocalDateTime deletedAt;
 
   @PrePersist
   public void prePersist() {

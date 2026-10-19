@@ -15,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class ReviewService {
-
   private final ReviewRepository reviewRepository;
   private final ProductRepository productRepository;
 
@@ -30,7 +29,6 @@ public class ReviewService {
             .findById(productId)
             .orElseThrow(
                 () -> new ResourceNotFoundException("Product not found with id: " + productId));
-
     Review review =
         Review.builder()
             .product(product)
@@ -38,12 +36,12 @@ public class ReviewService {
             .rating(request.getRating())
             .comment(request.getComment())
             .build();
-
     return reviewRepository.save(review);
   }
 
   @Transactional
   public void deleteReview(Long reviewId, User user) {
+    // ✅ UPDATED: Verify existence and permissions first
     Review review =
         reviewRepository
             .findById(reviewId)
@@ -54,6 +52,7 @@ public class ReviewService {
       throw new RuntimeException("You do not have permission to delete this review");
     }
 
-    reviewRepository.delete(review);
+    // ✅ UPDATED: Soft delete
+    reviewRepository.softDeleteById(reviewId);
   }
 }

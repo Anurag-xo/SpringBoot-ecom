@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.Set;
 import lombok.*;
+import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(name = "users")
@@ -12,6 +13,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@SQLRestriction("deleted_at IS NULL") // ✅ NEW
 public class User {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -36,6 +38,10 @@ public class User {
 
   @Column(name = "created_at")
   private LocalDateTime createdAt;
+
+  // ✅ NEW: Soft delete timestamp
+  @Column(name = "deleted_at")
+  private LocalDateTime deletedAt;
 
   @PrePersist
   public void prePersist() {
