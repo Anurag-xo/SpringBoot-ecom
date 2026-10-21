@@ -36,6 +36,9 @@ public class ProductService {
     existingProduct.setCategory(productDetails.getCategory());
     existingProduct.setPrice(productDetails.getPrice());
     existingProduct.setStockQuantity(productDetails.getStockQuantity());
+    existingProduct.setIsDigital(productDetails.getIsDigital());
+    existingProduct.setDigitalFilePath(productDetails.getDigitalFilePath());
+
     Product savedProduct = productRepository.save(existingProduct);
     searchService.indexProduct(savedProduct);
     return savedProduct;
@@ -53,12 +56,9 @@ public class ProductService {
 
   @Transactional
   public void deleteProduct(Long id) {
-    // ✅ UPDATED: Verify it exists first (findById respects @SQLRestriction)
     productRepository
         .findById(id)
         .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
-
-    // ✅ UPDATED: Soft delete instead of hard delete
     productRepository.softDeleteById(id);
     searchService.deleteProductFromIndex(id);
   }
@@ -70,6 +70,20 @@ public class ProductService {
             .findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
     product.setImageUrl(imageUrl);
+    Product savedProduct = productRepository.save(product);
+    searchService.indexProduct(savedProduct);
+    return savedProduct;
+  }
+
+  // ✅ NEW: Update digital file path
+  @Transactional
+  public Product updateProductDigitalFile(Long id, String filePath) {
+    Product product =
+        productRepository
+            .findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
+    product.setDigitalFilePath(filePath);
+    product.setIsDigital(true);
     Product savedProduct = productRepository.save(product);
     searchService.indexProduct(savedProduct);
     return savedProduct;
