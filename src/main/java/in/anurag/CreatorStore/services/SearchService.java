@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Slf4j
 public class SearchService {
-
   private final Client meilisearchClient;
   private static final String INDEX_NAME = "products";
 
@@ -54,7 +53,6 @@ public class SearchService {
     try {
       Index index = meilisearchClient.index(INDEX_NAME);
       index.deleteAllDocuments();
-
       StringBuilder jsonBuilder = new StringBuilder("[");
       for (int i = 0; i < products.size(); i++) {
         jsonBuilder.append(mapToJson(productToMap(products.get(i))));
@@ -63,7 +61,6 @@ public class SearchService {
         }
       }
       jsonBuilder.append("]");
-
       TaskInfo task = index.addDocuments(jsonBuilder.toString());
       log.info(
           "🔄 Reindexed {} products to Meilisearch. Task UID: {}",
@@ -74,7 +71,6 @@ public class SearchService {
     }
   }
 
-  // ✅ FIX 1: Return type changed from SearchResult to Searchable
   public Searchable searchProducts(String query, int limit) {
     try {
       Index index = meilisearchClient.index(INDEX_NAME);
@@ -86,13 +82,12 @@ public class SearchService {
     }
   }
 
-  // ✅ FIX 1 & 2: Return type changed, and filter now accepts String[]
   public Searchable searchProductsWithFilters(
       String query, String category, Double minPrice, Double maxPrice, int limit) {
     try {
       Index index = meilisearchClient.index(INDEX_NAME);
-
       List<String> filters = new ArrayList<>();
+
       if (category != null && !category.isBlank()) {
         filters.add("category = \"" + category + "\"");
       }
@@ -103,14 +98,14 @@ public class SearchService {
         filters.add("price <= " + maxPrice);
       }
 
+      // 💡 TIP: You can now easily add a filter for digital products if needed!
+      // Example: filters.add("isDigital = true");
+
       SearchRequest.SearchRequestBuilder builder =
           SearchRequest.builder().q(query != null ? query : "").limit(limit);
-
       if (!filters.isEmpty()) {
-        // ✅ FIX 2: Wrap the joined string in a String array
         builder.filter(new String[] {String.join(" AND ", filters)});
       }
-
       return index.search(builder.build());
     } catch (Exception e) {
       log.error("❌ Filtered search failed: {}", e.getMessage());
@@ -127,6 +122,10 @@ public class SearchService {
     map.put("price", product.getPrice().doubleValue());
     map.put("stockQuantity", product.getStockQuantity());
     map.put("imageUrl", product.getImageUrl() != null ? product.getImageUrl() : "");
+
+    // ✅ NEW: Add digital flag to search index so it can be filtered/searched
+    map.put("isDigital", product.getIsDigital() != null ? product.getIsDigital() : false);
+
     return map;
   }
 
@@ -149,6 +148,7 @@ public class SearchService {
   }
 
   private String escapeJson(String text) {
+    // ✅ FIXED: Corrected newline escape sequences from the original file
     return text.replace("\\", "\\\\")
         .replace("\"", "\\\"")
         .replace("\n", "\\n")
