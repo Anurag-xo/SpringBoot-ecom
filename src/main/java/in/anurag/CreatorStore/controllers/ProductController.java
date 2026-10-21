@@ -22,14 +22,13 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
-@RequestMapping("/api/v1/products") // ✅ UPDATED: Added v1 versioning
+@RequestMapping("/api/v1/products")
 @RequiredArgsConstructor
 @Tag(
     name = "Products",
     description =
         "Product catalog management (CRUD, pagination, image uploads, and advanced search)")
 public class ProductController {
-
   private final ProductService productService;
   private final ProductVariantService productVariantService;
   private final FileStorageService fileStorageService;
@@ -103,14 +102,21 @@ public class ProductController {
   @PostMapping("/{id}/image")
   public ResponseEntity<Product> uploadProductImage(
       @PathVariable Long id, @RequestParam("file") MultipartFile file) {
-    String fileName = fileStorageService.storeFile(file);
-    String imageUrl = "/uploads/" + fileName;
+    String imageUrl = fileStorageService.storeFile(file);
     return ResponseEntity.ok(productService.updateProductImage(id, imageUrl));
   }
 
-  // ==========================================
-  // PRODUCT VARIANT ENDPOINTS
-  // ==========================================
+  // ✅ NEW: Upload digital file endpoint
+  @Operation(
+      summary = "Upload digital file for a product",
+      description = "Admin only: Uploads a digital file (e.g., zip, pdf) for a digital product.")
+  @PreAuthorize("hasRole('ADMIN')")
+  @PostMapping("/{id}/digital-file")
+  public ResponseEntity<Product> uploadDigitalFile(
+      @PathVariable Long id, @RequestParam("file") MultipartFile file) {
+    String filePath = fileStorageService.storeDigitalFile(file);
+    return ResponseEntity.ok(productService.updateProductDigitalFile(id, filePath));
+  }
 
   @Operation(
       summary = "Get all variants for a product",
@@ -168,10 +174,6 @@ public class ProductController {
     productVariantService.toggleVariantActive(variantId);
     return ResponseEntity.ok().build();
   }
-
-  // ==========================================
-  // MEILISEARCH ENDPOINTS
-  // ==========================================
 
   @Operation(
       summary = "Search products (Full-Text)",
