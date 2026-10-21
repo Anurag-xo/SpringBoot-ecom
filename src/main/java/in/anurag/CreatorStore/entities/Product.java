@@ -2,7 +2,7 @@ package in.anurag.CreatorStore.entities;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.LocalDateTime; // ✅ ADDED: Required for deletedAt
 import java.util.ArrayList;
 import java.util.List;
 import lombok.*;
@@ -18,7 +18,7 @@ import org.hibernate.envers.NotAudited;
 @AllArgsConstructor
 @Builder
 @Audited
-@SQLRestriction("deleted_at IS NULL") // ✅ NEW: Automatically filters out soft-deleted products
+@SQLRestriction("deleted_at IS NULL")
 public class Product {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -39,6 +39,14 @@ public class Product {
   private Integer stockQuantity;
 
   private String imageUrl;
+
+  // ✅ NEW: Digital Product Fields
+  @Column(name = "is_digital")
+  @Builder.Default
+  private Boolean isDigital = false;
+
+  @Column(name = "digital_file_path", length = 500)
+  private String digitalFilePath;
 
   @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
   @Builder.Default
