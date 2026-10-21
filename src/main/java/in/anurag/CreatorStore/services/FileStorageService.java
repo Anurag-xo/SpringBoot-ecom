@@ -12,11 +12,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class FileStorageService {
-
   private final Path fileStorageLocation;
 
   public FileStorageService() {
-    // This will create an "uploads" folder in the root of your project
     this.fileStorageLocation = Paths.get("uploads").toAbsolutePath().normalize();
   }
 
@@ -24,6 +22,8 @@ public class FileStorageService {
   public void init() {
     try {
       Files.createDirectories(this.fileStorageLocation);
+      Files.createDirectories(
+          this.fileStorageLocation.resolve("digital")); // ✅ NEW: Ensure digital folder exists
     } catch (IOException ex) {
       throw new RuntimeException(
           "Could not create the directory where the uploaded files will be stored.", ex);
@@ -33,25 +33,41 @@ public class FileStorageService {
   public String storeFile(MultipartFile file) {
     String originalFileName = file.getOriginalFilename();
     String fileExtension = "";
-
     if (originalFileName != null && originalFileName.contains(".")) {
       fileExtension = originalFileName.substring(originalFileName.lastIndexOf("."));
     }
-
-    // Generate a unique file name using UUID to prevent overwrites
     String fileName = UUID.randomUUID().toString() + fileExtension;
-
     try {
       if (!isAllowedExtension(fileExtension)) {
         throw new RuntimeException("Sorry! Only JPG, JPEG, PNG, and GIF files are allowed.");
       }
-
       Path targetLocation = this.fileStorageLocation.resolve(fileName);
       Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
-
-      return fileName;
+      return "uploads/" + fileName;
     } catch (IOException ex) {
       throw new RuntimeException("Could not store file " + fileName + ". Please try again!", ex);
+    }
+  }
+
+  // ✅ NEW: Dedicated method for digital files (allows ZIP, PDF, etc.)
+  public String storeDigitalFile(MultipartFile file) {
+    String originalFileName = file.getOriginalFilename();
+    String fileExtension = "";
+    if (originalFileName != null && originalFileName.contains(".")) {
+      fileExtension = originalFileName.substring(originalFileName.lastIndexOf("."));
+    }
+    String fileName = UUID.randomUUID().toString() + fileExtension;
+
+    Path digitalStorageLocation =
+        this.fileStorageLocation.resolve("digital").toAbsolutePath().normalize();
+    try {
+      Files.createDirectories(digitalStorageLocation);
+      Path targetLocation = digitalStorageLocation.resolve(fileName);
+      Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
+      return "uploads/digital/" + fileName;
+    } catch (IOException ex) {
+      throw new RuntimeException(
+          "Could not store digital file " + fileName + ". Please try again!", ex);
     }
   }
 
