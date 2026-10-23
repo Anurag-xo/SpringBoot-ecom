@@ -12,7 +12,9 @@ import org.springframework.stereotype.Repository;
 public interface ReviewRepository extends JpaRepository<Review, Long> {
   List<Review> findByProductId(Long productId);
 
-  // ✅ NEW: Soft delete query
+  // ✅ ADDED: For GDPR Data Export & Deletion
+  List<Review> findByUserId(Long userId);
+
   @Modifying
   @Query("UPDATE Review r SET r.deletedAt = CURRENT_TIMESTAMP WHERE r.id = :id")
   void softDeleteById(@Param("id") Long id);

@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.*;
+import org.hibernate.envers.Audited; // ✅ ADDED
 
 @Entity
 @Table(name = "coupons", uniqueConstraints = @UniqueConstraint(columnNames = "code"))
@@ -12,6 +13,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Audited // ✅ ADDED: Track all changes to coupons
 public class Coupon {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -41,7 +43,7 @@ public class Coupon {
   private LocalDateTime validUntil;
 
   @Column(name = "usage_limit")
-  private Integer usageLimit; // Null means unlimited
+  private Integer usageLimit;
 
   @Column(name = "times_used")
   @Builder.Default
