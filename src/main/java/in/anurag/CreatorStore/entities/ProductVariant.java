@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.*;
 import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.envers.Audited; // ✅ ADDED
 
 @Entity
 @Table(
@@ -15,7 +16,8 @@ import org.hibernate.annotations.SQLRestriction;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@SQLRestriction("deleted_at IS NULL") // ✅ NEW
+@SQLRestriction("deleted_at IS NULL")
+@Audited // ✅ ADDED: Track changes to product variants for compliance
 public class ProductVariant {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -48,7 +50,6 @@ public class ProductVariant {
   @Builder.Default
   private Boolean active = true;
 
-  // ✅ NEW: Soft delete timestamp
   @Column(name = "deleted_at")
   private LocalDateTime deletedAt;
 }
