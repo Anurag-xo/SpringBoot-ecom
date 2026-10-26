@@ -1,51 +1,76 @@
 package in.anurag.CreatorStore.services;
 
+import in.anurag.CreatorStore.dto.ProductRequest;
 import in.anurag.CreatorStore.entities.Product;
+import in.anurag.CreatorStore.events.ProductUpdatedEvent;
 import in.anurag.CreatorStore.exceptions.ResourceNotFoundException;
 import in.anurag.CreatorStore.repositories.ProductRepository;
-import java.util.List;
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ProductService {
+
   private final ProductRepository productRepository;
-  private final SearchService searchService;
+
+  // ✅ NEW: Inject Event Publisher
+  private final ApplicationEventPublisher eventPublisher;
 
   @Transactional
-  public Product createProduct(Product product) {
+  public Product createProduct(ProductRequest request) {
+    Product product =
+        Product.builder()
+            .name(request.getName())
+            .description(request.getDescription())
+            .category(request.getCategory())
+            .price(request.getPrice())
+            .stockQuantity(request.getStockQuantity())
+            .imageUrl(request.getImageUrl())
+            .isDigital(request.getIsDigital() != null && request.getIsDigital())
+            .build();
+
     Product savedProduct = productRepository.save(product);
-    searchService.indexProduct(savedProduct);
+
+    // ✅ NEW: Publish Event (Replaces direct searchService call)
+    eventPublisher.publishEvent(new ProductUpdatedEvent(this, savedProduct));
+    log.info("🚀 Published ProductUpdatedEvent for new Product #{}", savedProduct.getId());
+
     return savedProduct;
   }
 
   @Transactional
-  public Product updateProduct(Long id, Product productDetails) {
-    Product existingProduct =
+  public Product updateProduct(Long id, ProductRequest request) {
+    Product product =
         productRepository
             .findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
-    existingProduct.setName(productDetails.getName());
-    existingProduct.setDescription(productDetails.getDescription());
-    existingProduct.setCategory(productDetails.getCategory());
-    existingProduct.setPrice(productDetails.getPrice());
-    existingProduct.setStockQuantity(productDetails.getStockQuantity());
-    existingProduct.setIsDigital(productDetails.getIsDigital());
-    existingProduct.setDigitalFilePath(productDetails.getDigitalFilePath());
 
-    Product savedProduct = productRepository.save(existingProduct);
-    searchService.indexProduct(savedProduct);
-    return savedProduct;
+    product.setName(request.getName());
+    product.setDescription(request.getDescription());
+    product.setCategory(request.getCategory());
+    product.setPrice(request.getPrice());
+    product.setStockQuantity(request.getStockQuantity());
+    product.setImageUrl(request.getImageUrl());
+
+    Product updatedProduct = productRepository.save(product);
+
+    // ✅ NEW: Publish Event
+    eventPublisher.publishEvent(new ProductUpdatedEvent(this, updatedProduct));
+    log.info("🚀 Published ProductUpdatedEvent for updated Product #{}", updatedProduct.getId());
+
+    return updatedProduct;
   }
 
-  public List<Product> getAllProducts() {
-    return productRepository.findAll();
+  public Page<Product> getAllProducts(Pageable pageable) {
+    return productRepository.findAll(pageable);
   }
 
   public Product getProductById(Long id) {
@@ -56,59 +81,10 @@ public class ProductService {
 
   @Transactional
   public void deleteProduct(Long id) {
-    productRepository
-        .findById(id)
-        .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
-    productRepository.softDeleteById(id);
-    searchService.deleteProductFromIndex(id);
+    Product product = getProductById(id);
+    product.setDeletedAt(LocalDateTime.now());
+    productRepository.save(product);
   }
 
-  @Transactional
-  public Product updateProductImage(Long id, String imageUrl) {
-    Product product =
-        productRepository
-            .findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
-    product.setImageUrl(imageUrl);
-    Product savedProduct = productRepository.save(product);
-    searchService.indexProduct(savedProduct);
-    return savedProduct;
-  }
-
-  // ✅ NEW: Update digital file path
-  @Transactional
-  public Product updateProductDigitalFile(Long id, String filePath) {
-    Product product =
-        productRepository
-            .findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
-    product.setDigitalFilePath(filePath);
-    product.setIsDigital(true);
-    Product savedProduct = productRepository.save(product);
-    searchService.indexProduct(savedProduct);
-    return savedProduct;
-  }
-
-  public Page<Product> getAllProducts(
-      int page, int size, String sortBy, String sortDir, String category, String search) {
-    Sort sort =
-        sortDir.equalsIgnoreCase("asc")
-            ? Sort.by(sortBy).ascending()
-            : Sort.by(sortBy).descending();
-    Pageable pageable = PageRequest.of(page, size, sort);
-
-    boolean hasCategory = category != null && !category.trim().isEmpty();
-    boolean hasSearch = search != null && !search.trim().isEmpty();
-
-    if (hasCategory && hasSearch) {
-      return productRepository.findByCategoryIgnoreCaseAndNameContainingIgnoreCase(
-          category, search, pageable);
-    } else if (hasCategory) {
-      return productRepository.findByCategoryIgnoreCase(category, pageable);
-    } else if (hasSearch) {
-      return productRepository.findByNameContainingIgnoreCase(search, pageable);
-    } else {
-      return productRepository.findAll(pageable);
-    }
-  }
+  // ... Keep your existing digital file update methods here ...
 }
