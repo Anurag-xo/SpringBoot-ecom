@@ -1,11 +1,24 @@
 package in.anurag.CreatorStore.config;
 
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+
+import java.util.concurrent.Executor;
 
 @Configuration
-@EnableAsync
+@EnableAsync // ✅ Enables @Async processing
 public class AsyncConfig {
-    // Spring will automatically configure a default ThreadPoolTaskExecutor.
-    // You can customize it here later if needed (e.g., core pool size, queue capacity).
+
+    @Bean(name = "eventTaskExecutor")
+    public Executor eventTaskExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(5);      // Minimum threads always running
+        executor.setMaxPoolSize(10);      // Maximum threads during spikes
+        executor.setQueueCapacity(500);   // Queue size before rejecting tasks
+        executor.setThreadNamePrefix("EventAsync-");
+        executor.initialize();
+        return executor;
+    }
 }
