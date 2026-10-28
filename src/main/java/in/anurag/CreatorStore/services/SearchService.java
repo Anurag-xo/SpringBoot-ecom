@@ -6,6 +6,8 @@ import com.meilisearch.sdk.SearchRequest;
 import com.meilisearch.sdk.model.Searchable;
 import com.meilisearch.sdk.model.TaskInfo;
 import in.anurag.CreatorStore.entities.Product;
+import io.micrometer.core.instrument.MeterRegistry; // ✅ NEW
+import io.micrometer.core.instrument.Timer; // ✅ NEW
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +19,10 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class SearchService {
   private final Client meilisearchClient;
+
+  // ✅ NEW: Inject MeterRegistry
+  private final MeterRegistry meterRegistry;
+
   private static final String INDEX_NAME = "products";
 
   @Async
@@ -72,11 +78,27 @@ public class SearchService {
   }
 
   public Searchable searchProducts(String query, int limit) {
+    // ✅ NEW: Start timer for latency tracking
+    Timer.Sample sample = Timer.start(meterRegistry);
     try {
       Index index = meilisearchClient.index(INDEX_NAME);
       SearchRequest searchRequest = SearchRequest.builder().q(query).limit(limit).build();
-      return index.search(searchRequest);
+      Searchable result = index.search(searchRequest);
+
+      // ✅ NEW: Stop timer and record success
+      sample.stop(
+          Timer.builder("creatorstore.search.latency")
+              .tag("index", "products")
+              .tag("status", "success")
+              .register(meterRegistry));
+      return result;
     } catch (Exception e) {
+      // ✅ NEW: Stop timer and record error
+      sample.stop(
+          Timer.builder("creatorstore.search.latency")
+              .tag("index", "products")
+              .tag("status", "error")
+              .register(meterRegistry));
       log.error("❌ Search failed for query '{}': {}", query, e.getMessage());
       return null;
     }
@@ -87,7 +109,6 @@ public class SearchService {
     try {
       Index index = meilisearchClient.index(INDEX_NAME);
       List<String> filters = new ArrayList<>();
-
       if (category != null && !category.isBlank()) {
         filters.add("category = \"" + category + "\"");
       }
@@ -97,9 +118,6 @@ public class SearchService {
       if (maxPrice != null) {
         filters.add("price <= " + maxPrice);
       }
-
-      // 💡 TIP: You can now easily add a filter for digital products if needed!
-      // Example: filters.add("isDigital = true");
 
       SearchRequest.SearchRequestBuilder builder =
           SearchRequest.builder().q(query != null ? query : "").limit(limit);
@@ -122,10 +140,7 @@ public class SearchService {
     map.put("price", product.getPrice().doubleValue());
     map.put("stockQuantity", product.getStockQuantity());
     map.put("imageUrl", product.getImageUrl() != null ? product.getImageUrl() : "");
-
-    // ✅ NEW: Add digital flag to search index so it can be filtered/searched
     map.put("isDigital", product.getIsDigital() != null ? product.getIsDigital() : false);
-
     return map;
   }
 
@@ -148,7 +163,6 @@ public class SearchService {
   }
 
   private String escapeJson(String text) {
-    // ✅ FIXED: Corrected newline escape sequences from the original file
     return text.replace("\\", "\\\\")
         .replace("\"", "\\\"")
         .replace("\n", "\\n")
