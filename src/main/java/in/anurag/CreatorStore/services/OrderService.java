@@ -2,126 +2,162 @@ package in.anurag.CreatorStore.services;
 
 import in.anurag.CreatorStore.dto.OrderItemRequest;
 import in.anurag.CreatorStore.dto.OrderRequest;
-import in.anurag.CreatorStore.entities.*;
-import in.anurag.CreatorStore.events.LowStockEvent;
-import in.anurag.CreatorStore.events.OrderCreatedEvent;
+import in.anurag.CreatorStore.entities.Order;
+import in.anurag.CreatorStore.entities.OrderItem;
+import in.anurag.CreatorStore.entities.OrderStatus;
+import in.anurag.CreatorStore.entities.Product;
+import in.anurag.CreatorStore.entities.ProductVariant;
+import in.anurag.CreatorStore.entities.User;
 import in.anurag.CreatorStore.exceptions.ResourceNotFoundException;
 import in.anurag.CreatorStore.repositories.OrderRepository;
 import in.anurag.CreatorStore.repositories.ProductRepository;
 import in.anurag.CreatorStore.repositories.ProductVariantRepository;
+import io.micrometer.core.instrument.MeterRegistry; // ✅ NEW
+import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class OrderService {
+    private final OrderRepository orderRepository;
+    private final ProductRepository productRepository;
+    private final ProductVariantRepository variantRepository;
+    private final EmailService emailService;
+    
+    // ✅ NEW: Inject MeterRegistry for custom metrics
+    private final MeterRegistry meterRegistry;
 
-  private final OrderRepository orderRepository;
-  private final ProductRepository productRepository;
-  private final ProductVariantRepository productVariantRepository;
-  private final CouponService couponService;
+    @Transactional
+    public Order createOrder(OrderRequest orderRequest, User user) {
+        Order order = new Order();
+        order.setCustomerName(orderRequest.getCustomerName());
+        order.setCustomerEmail(orderRequest.getCustomerEmail());
+        order.setStatus(OrderStatus.PENDING);
+        order.setUser(user);
 
-  // ✅ NEW: Inject Event Publisher
-  private final ApplicationEventPublisher eventPublisher;
+        List<OrderItem> orderItems = new ArrayList<>();
+        BigDecimal totalPrice = BigDecimal.ZERO;
 
-  private static final int LOW_STOCK_THRESHOLD = 5;
+        for (OrderItemRequest itemRequest : orderRequest.getItems()) {
+            Product product = productRepository.findById(itemRequest.getProductId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + itemRequest.getProductId()));
 
-  @Transactional
-  public Order createOrder(OrderRequest request, User user) {
-    Order order =
-        Order.builder()
-            .customerName(request.getCustomerName())
-            .customerEmail(request.getCustomerEmail())
-            .user(user)
-            .orderItems(new ArrayList<>())
-            .build();
+            ProductVariant variant = null;
+            BigDecimal price = product.getPrice();
 
-    BigDecimal totalPrice = BigDecimal.ZERO;
+            if (itemRequest.getVariantId() != null) {
+                variant = variantRepository.findById(itemRequest.getVariantId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Variant not found"));
+                price = variant.getPrice();
+                if (variant.getStockQuantity() < itemRequest.getQuantity()) {
+                    throw new RuntimeException("Not enough stock for variant: " + variant.getSku());
+                }
+                variant.setStockQuantity(variant.getStockQuantity() - itemRequest.getQuantity());
+                variantRepository.save(variant);
+            } else {
+                if (product.getStockQuantity() < itemRequest.getQuantity()) {
+                    throw new RuntimeException("Not enough stock for product: " + product.getName());
+                }
+                product.setStockQuantity(product.getStockQuantity() - itemRequest.getQuantity());
+                productRepository.save(product);
+            }
 
-    for (OrderItemRequest itemReq : request.getItems()) {
-      Product product =
-          productRepository
-              .findById(itemReq.getProductId())
-              .orElseThrow(
-                  () ->
-                      new ResourceNotFoundException(
-                          "Product not found with id: " + itemReq.getProductId()));
-
-      ProductVariant variant = null;
-      int currentStock = product.getStockQuantity();
-
-      if (itemReq.getVariantId() != null) {
-        variant =
-            productVariantRepository
-                .findById(itemReq.getVariantId())
-                .orElseThrow(
-                    () ->
-                        new ResourceNotFoundException(
-                            "Variant not found with id: " + itemReq.getVariantId()));
-        currentStock = variant.getStockQuantity();
-      }
-
-      if (currentStock < itemReq.getQuantity()) {
-        throw new IllegalStateException("Insufficient stock for product: " + product.getName());
-      }
-
-      BigDecimal itemPrice = variant != null ? variant.getPrice() : product.getPrice();
-      BigDecimal itemTotal = itemPrice.multiply(BigDecimal.valueOf(itemReq.getQuantity()));
-      totalPrice = totalPrice.add(itemTotal);
-
-      OrderItem orderItem =
-          OrderItem.builder()
-              .order(order)
-              .product(product)
-              .variant(variant)
-              .quantity(itemReq.getQuantity())
-              .priceAtPurchase(itemPrice)
-              .build();
-
-      order.getOrderItems().add(orderItem);
-
-      // Decrement Stock & Check Thresholds
-      if (variant != null) {
-        variant.setStockQuantity(currentStock - itemReq.getQuantity());
-        productVariantRepository.save(variant);
-
-        if (variant.getStockQuantity() <= LOW_STOCK_THRESHOLD && variant.getStockQuantity() > 0) {
-          eventPublisher.publishEvent(new LowStockEvent(this, product, variant.getStockQuantity()));
+            OrderItem orderItem = OrderItem.builder()
+                    .order(order)
+                    .product(product)
+                    .variant(variant)
+                    .quantity(itemRequest.getQuantity())
+                    .priceAtPurchase(price)
+                    .build();
+            orderItems.add(orderItem);
+            totalPrice = totalPrice.add(price.multiply(BigDecimal.valueOf(itemRequest.getQuantity())));
         }
-      } else {
-        product.setStockQuantity(currentStock - itemReq.getQuantity());
-        productRepository.save(product);
 
-        if (product.getStockQuantity() <= LOW_STOCK_THRESHOLD && product.getStockQuantity() > 0) {
-          eventPublisher.publishEvent(new LowStockEvent(this, product, product.getStockQuantity()));
-        }
-      }
+        order.setTotalPrice(totalPrice);
+        order.setOrderItems(orderItems);
+        Order savedOrder = orderRepository.save(order);
+
+        // ✅ NEW: Track custom business metric
+        meterRegistry.counter("creatorstore.orders.created", "status", "success").increment();
+
+        emailService.sendOrderConfirmationEmail(user, savedOrder);
+        return savedOrder;
     }
 
-    // Handle Coupon
-    BigDecimal discountAmount = BigDecimal.ZERO;
-    if (request.getCouponCode() != null && !request.getCouponCode().isBlank()) {
-      Coupon coupon = couponService.validateAndApplyCoupon(request.getCouponCode(), totalPrice);
-      order.setCouponCode(coupon.getCode());
-      discountAmount = couponService.calculateDiscount(coupon, totalPrice);
-      order.setDiscountAmount(discountAmount);
+    public List<Order> getOrdersByUser(User user) {
+        return orderRepository.findByUserOrderByCreatedAtDesc(user);
     }
 
-    order.setTotalPrice(totalPrice.subtract(discountAmount));
-    Order savedOrder = orderRepository.save(order);
+    public List<Order> getAllOrders() {
+        return orderRepository.findAllByOrderByCreatedAtDesc();
+    }
 
-    // ✅ NEW: Publish Event (Replaces direct emailService call)
-    eventPublisher.publishEvent(new OrderCreatedEvent(this, savedOrder));
-    log.info("🚀 Published OrderCreatedEvent for Order #{}", savedOrder.getId());
+    public Order getOrderById(Long id, User user) {
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + id));
+        if (!order.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("You don't have permission to view this order");
+        }
+        return order;
+    }
 
-    return savedOrder;
-  }
+    public Order getOrderByIdForAdmin(Long id) {
+        return orderRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + id));
+    }
 
-  // ... Keep your existing getOrders, updateStatus, etc. methods here ...
+    @Transactional
+    public Order updateOrderStatus(Long orderId, OrderStatus newStatus) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + orderId));
+        order.setStatus(newStatus);
+        return orderRepository.save(order);
+    }
+
+    @Transactional
+    public Order cancelOrder(Long orderId, User currentUser) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + orderId));
+        if (!order.getUser().getId().equals(currentUser.getId())) {
+            throw new RuntimeException("You do not have permission to cancel this order");
+        }
+        if (order.getStatus() != OrderStatus.PENDING) {
+            throw new RuntimeException("Only PENDING orders can be cancelled. Current status: " + order.getStatus());
+        }
+        order.setStatus(OrderStatus.CANCELLED);
+        for (OrderItem item : order.getOrderItems()) {
+            Product product = item.getProduct();
+            product.setStockQuantity(product.getStockQuantity() + item.getQuantity());
+            productRepository.save(product);
+        }
+        Order cancelledOrder = orderRepository.save(order);
+        
+        // ✅ NEW: Track cancellation metric
+        meterRegistry.counter("creatorstore.orders.cancelled").increment();
+
+        emailService.sendOrderCancellationEmail(currentUser, cancelledOrder);
+        return cancelledOrder;
+    }
+
+    @Transactional
+    public Order cancelExpiredPendingOrder(Order order) {
+        order.setStatus(OrderStatus.CANCELLED);
+        for (OrderItem item : order.getOrderItems()) {
+            Product product = item.getProduct();
+            product.setStockQuantity(product.getStockQuantity() + item.getQuantity());
+            productRepository.save(product);
+        }
+        return orderRepository.save(order);
+    }
+
+    @Transactional
+    public void deleteOrder(Long orderId) {
+        orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + orderId));
+        orderRepository.softDeleteById(orderId);
+    }
 }

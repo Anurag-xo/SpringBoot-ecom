@@ -1,5 +1,4 @@
 version: "3.8"
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -20,7 +19,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # NEW: Meilisearch Search Engine
   meilisearch:
     image: getmeili/meilisearch:v1.10
     container_name: creatorstore-search
@@ -46,6 +44,47 @@ services:
       timeout: 5s
       retries: 5
 
+  # ✅ NEW: Prometheus (Metrics Collection)
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: creatorstore-prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    ports:
+      - "9090:9090"
+    networks:
+      - creatorstore-network
+    restart: unless-stopped
+
+  # ✅ NEW: Grafana (Metrics Visualization)
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: creatorstore-grafana
+    ports:
+      - "3001:3000" # Mapped to 3001 to avoid conflict with React frontend on 3000
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+    networks:
+      - creatorstore-network
+    restart: unless-stopped
+
+  # ✅ NEW: Zipkin (Distributed Tracing)
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: creatorstore-zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - creatorstore-network
+    restart: unless-stopped
+
   app:
     build:
       context: .
@@ -57,7 +96,6 @@ services:
       DATABASE_URL: jdbc:postgresql://postgres:5432/creatorstore
       DATABASE_USERNAME: postgres
       DATABASE_PASSWORD: postgres
-      # NEW: Meilisearch connection
       MEILISEARCH_URL: http://meilisearch:7700
       MEILISEARCH_KEY: your_master_key_here
       JWT_SECRET: YourSuperSecretKeyForJWTTokenGenerationMustBeAtLeast256BitsLong123456
@@ -65,6 +103,8 @@ services:
       ADMIN_USERNAME: admin
       ADMIN_EMAIL: admin@creatorstore.com
       ADMIN_PASSWORD: admin123
+      # ✅ NEW: Tell the app where Zipkin is in the Docker network
+      ZIPKIN_URL: http://zipkin:9411/api/v2/spans
     volumes:
       - app_uploads:/app/uploads
     depends_on:
@@ -82,6 +122,10 @@ volumes:
   meilisearch_data:
     driver: local
   app_uploads:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
     driver: local
 
 networks:

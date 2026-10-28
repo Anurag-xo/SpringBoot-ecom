@@ -33,27 +33,22 @@ spring:
           starttls:
             enable: true
 
-# NEW: Frontend URL for password reset links
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
 
-# API Versioning Configuration
 api:
   version:
     current: v1
     deprecated: []
 
-# Meilisearch Configuration
 meilisearch:
   url: ${MEILISEARCH_URL:http://localhost:7700}
   key: ${MEILISEARCH_KEY:your_master_key_here}
 
-# JWT Configuration
 jwt:
   secret: ${JWT_SECRET:YourSuperSecretKeyForJWTTokenGenerationMustBeAtLeast256BitsLong123456}
   expiration: ${JWT_EXPIRATION:86400000}
 
-# Admin user initialization
 admin:
   username: ${ADMIN_USERNAME:admin}
   email: ${ADMIN_EMAIL:admin@creatorstore.com}
@@ -66,3 +61,27 @@ logging:
   level:
     root: INFO
     in.anurag.CreatorStore: INFO
+
+# ✅ NEW: Observability & Monitoring Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+  tracing:
+    enabled: true
+    sampling:
+      probability: 1.0 # 100% of requests traced (for dev)
+  zipkin:
+    tracing:
+      # Uses env var for Docker, falls back to localhost for local dev
+      endpoint: ${ZIPKIN_URL:http://localhost:9411/api/v2/spans}
