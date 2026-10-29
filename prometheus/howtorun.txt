@@ -1,0 +1,8 @@
+Start the Stack: Run docker-compose up -d --build.
+Generate Traffic: Hit your API a few times (create products, search, place orders) to generate metrics and traces.
+View Prometheus (Raw Metrics): Go to http://localhost:9090. Click "Status" -> "Targets". You should see creatorstore-app as UP.
+View Grafana (Dashboards):
+Go to http://localhost:3001 (Login: admin / admin123).
+Add Prometheus as a Data Source (URL: http://prometheus:9090).
+Click "Dashboards" -> "Import". Enter Dashboard ID 12900 (Spring Boot Statistics) and click Load. You will instantly see beautiful graphs of your JVM, HTTP requests, and your custom creatorstore.orders.created metric!
+View Zipkin (Tracing): Go to http://localhost:9411. Click "Run Query". You will see a visual waterfall chart of exactly how many milliseconds your API spent in the Controller, the Database, and Meilisearch for every single request.
