@@ -2,11 +2,11 @@ package in.anurag.CreatorStore.entities;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import lombok.*;
 import org.hibernate.annotations.SQLRestriction;
-import org.hibernate.envers.Audited;
-import org.hibernate.envers.NotAudited; // ✅ ADDED
 
 @Entity
 @Table(name = "users")
@@ -16,7 +16,6 @@ import org.hibernate.envers.NotAudited; // ✅ ADDED
 @AllArgsConstructor
 @Builder
 @SQLRestriction("deleted_at IS NULL")
-@Audited // ✅ ADDED: Track changes to user profiles
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,13 +28,11 @@ public class User {
     private String email;
 
     @Column(nullable = false)
-    @NotAudited // ✅ ADDED: NEVER audit password hashes for security
     private String password;
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
     @Column(name = "role")
-    @NotAudited // ✅ ADDED: Skip auditing roles collection to keep audit tables clean
     private Set<String> roles;
 
     @Column(nullable = false)
@@ -46,6 +43,11 @@ public class User {
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
+
+    // ✅ NEW: User Addresses Relationship
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<UserAddress> addresses = new ArrayList<>();
 
     @PrePersist
     public void prePersist() {
