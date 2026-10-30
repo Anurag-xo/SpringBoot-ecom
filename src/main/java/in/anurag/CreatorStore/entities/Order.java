@@ -8,7 +8,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import lombok.*;
 import org.hibernate.annotations.SQLRestriction;
-import org.hibernate.envers.Audited; // ✅ ADDED
 
 @Entity
 @Table(name = "orders")
@@ -18,7 +17,6 @@ import org.hibernate.envers.Audited; // ✅ ADDED
 @AllArgsConstructor
 @Builder
 @SQLRestriction("deleted_at IS NULL")
-@Audited // ✅ ADDED: Track all changes to orders
 public class Order {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -44,6 +42,20 @@ public class Order {
     @Builder.Default
     private BigDecimal discountAmount = BigDecimal.ZERO;
 
+    // ✅ NEW: Shipping Cost
+    @Column(name = "shipping_cost")
+    @Builder.Default
+    private BigDecimal shippingCost = BigDecimal.ZERO;
+
+    // ✅ NEW: Shipping & Billing Addresses
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "shipping_address_id")
+    private UserAddress shippingAddress;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "billing_address_id")
+    private UserAddress billingAddress;
+
     @JsonManagedReference
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> orderItems;
@@ -62,11 +74,8 @@ public class Order {
     @PrePersist
     public void prePersist() {
         this.createdAt = LocalDateTime.now();
-        if (this.status == null) {
-            this.status = OrderStatus.PENDING;
-        }
-        if (this.discountAmount == null) {
-            this.discountAmount = BigDecimal.ZERO;
-        }
+        if (this.status == null) this.status = OrderStatus.PENDING;
+        if (this.discountAmount == null) this.discountAmount = BigDecimal.ZERO;
+        if (this.shippingCost == null) this.shippingCost = BigDecimal.ZERO;
     }
 }
